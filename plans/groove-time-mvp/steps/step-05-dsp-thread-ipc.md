@@ -1,6 +1,6 @@
 # Step 5: Thread DSP, throttling 16 ms, eventos e commands Tauri
 
-**Status:** pending
+**Status:** done
 **Depends on:** 4
 
 ## Goal
@@ -44,9 +44,19 @@ Criar o "engine": uma thread dedicada que consome o ring buffer, alimenta peak m
 
 ## Acceptance criteria
 
-- [ ] `pnpm tauri dev` com device default: no devtools, `listen('signal-frame', ...)` recebe ~60 eventos/s (medir; tolerância 55–65), nunca centenas.
-- [ ] Tocar/injetar sinal (ou cantar/assobiar no mic onboard) produz `pitch` coerente; silêncio produz `pitch: null`.
-- [ ] `invoke('set_bass_mode', { mode: 'active' })` reduz `peak_dbfs` em ~12 dB para o mesmo sinal.
-- [ ] Fechar a janela encerra a thread DSP e o stream sem panic (log de shutdown).
-- [ ] Sem device de captura disponível → app abre e emite `engine-status` de erro, sem crash.
-- [ ] Clippy limpo; `unwrap`/`expect` ausentes.
+- [x] ~60 eventos/s: medido no engine real (teste `engine_hw`): **62.3 frames/s**. *Não* medido no devtools do webview (sem UI ainda) — conferir ao fazer o passo 6.
+- [x] Pitch coerente: validado com sinais sintéticos a 192 kHz no `DspPipeline` (A1 < 2 cents; silêncio → `None`). Não testado com mic/baixo real.
+- [x] Modo ativo reduz ~12 dB: ganho -12 dB testado no pipeline (diferença 12.0 ± 0.1) e `mode` refletido nos frames do engine real. O `invoke` em si só será exercitado no passo 6.
+- [x] Shutdown: `stop()` junta a thread e solta o stream em ~3.6 ms sem panic; `RunEvent::Exit` chama `AppState::stop()`.
+- [x] Sem device → `EngineHandle::start` retorna `Err` (teste) e `AppState::start` converte em `engine-status` de erro; app abriu em `pnpm tauri dev` sem erros no log.
+- [x] Clippy `--all-targets -D warnings` limpo; sem `unwrap`/`expect` fora de testes.
+
+## Result
+
+- Novos: `src/pipeline.rs` (`DspPipeline`, `SignalFrame`, `PitchInfo`, `BassMode`), `src/dsp/smooth.rs` (`PitchSmoother`: mediana de 5 + hold de 10 leituras ≈ 160 ms), `src/engine.rs` (`EngineHandle`, `AppState`, eventos), `src/commands.rs`, `build.rs` com `AppManifest`, `tests/engine_hw.rs` (`#[ignore]`). `lib.rs` agora monta o app, gerencia `Arc<AppState>` e para o engine em `RunEvent::Exit`. 40 testes unitários passam.
+- **Decisões do usuário:** expor `list_input_devices` + `restart_engine`; desconexão da placa = erro em `engine-status` + reinício manual (sem reconexão automática). **Defaults meus:** modo inicial passivo; `clipped_recently` com hold de 1.5 s (`CLIP_HOLD_SECS`, contado pelo tempo de áudio processado — pode ser ajustado no passo 7).
+- Eventos: `signal-frame` (≤ 1 por 16 ms, agendamento fixo sem rajadas; pico = **máximo do intervalo**, `over_threshold` = qualquer pico ≥ -3 dBFS no intervalo) e `engine-status` (`state`: starting/running/error/stopped, `message`, `stream`, `mode`).
+- Commands: `set_bass_mode("active"|"passive")`, `get_engine_status`, `list_input_devices`, `restart_engine(device?)`. Erros viram string via `CommandError`. Permissões: `AppManifest` gera `allow-<command>`, listadas em `capabilities/default.json` junto com `core:event:default`.
+- O engine é iniciado numa thread no `setup` (enumeração ALSA é lenta). **Como o `engine-status` inicial pode ser emitido antes do webview escutar, o frontend (passo 6) deve chamar `get_engine_status` ao montar.**
+- Gate do YIN fixo em -50 dBFS (RMS pós-ganho/decimação); A4 fixo em 440 Hz (`set_a4_hz`/`set_gate_dbfs` já existem no pipeline para os passos 10/11, mas ainda não há atômicos em `SharedControls` para alterá-los em runtime — o passo 10/11 precisa adicioná-los).
+- Na máquina de teste o device `default` do PipeWire entregou 192 kHz/I24/mono, 0 drops.

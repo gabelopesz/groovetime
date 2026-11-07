@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Capability minima da janela principal",
   "windows": ["main"],
-  "permissions": ["core:event:default"]
+  "permissions": [
+    "core:event:default",
+    "allow-set-bass-mode",
+    "allow-get-engine-status",
+    "allow-list-input-devices",
+    "allow-restart-engine"
+  ]
 }

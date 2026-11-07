@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-bass-mode"
+description = "Enables the set_bass_mode command without any pre-configured scope."
+commands.allow = ["set_bass_mode"]
+
+[[permission]]
+identifier = "deny-set-bass-mode"
+description = "Denies the set_bass_mode command without any pre-configured scope."
+commands.deny = ["set_bass_mode"]

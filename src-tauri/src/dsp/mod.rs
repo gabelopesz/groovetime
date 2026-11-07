@@ -3,11 +3,13 @@
 pub mod decimate;
 pub mod note;
 pub mod peak;
+pub mod smooth;
 pub mod yin;
 
 pub use decimate::Decimator;
 pub use note::{NoteInfo, freq_to_note, note_to_freq};
 pub use peak::{PEAK_ALERT_DBFS, PeakMeter, PeakReading};
+pub use smooth::PitchSmoother;
 pub use yin::{PitchEstimate, Yin};
 
 /// Taxa alvo (Hz) do sinal decimado que alimenta o YIN.

@@ -50,3 +50,6 @@ Ampliar o monitor de sinal com nível RMS, contador de clips (com reset), diagn�
 - [ ] `reset_clip_count` zera o badge.
 - [ ] Eventos continuam ~60/s; nenhuma alocação nova nos processadores DSP.
 - [ ] Clippy e `vue-tsc` limpos.
+
+
+> Nota do passo 5: o gate do YIN e o A4 existem no `DspPipeline` (`set_gate_dbfs`, `set_a4_hz`), mas falta um canal atômico em `SharedControls` para o engine aplicá-los em runtime.

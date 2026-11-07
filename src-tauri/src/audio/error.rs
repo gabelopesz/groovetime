@@ -11,6 +11,8 @@ pub enum AudioError {
     DeviceNotFound(String),
     #[error("nenhuma configuracao de captura suportada pelo device")]
     UnsupportedConfig,
+    #[error("falha ao criar a thread de DSP: {0}")]
+    Thread(String),
     #[error("erro do backend de audio: {0}")]
     Backend(#[from] cpal::Error),
 }

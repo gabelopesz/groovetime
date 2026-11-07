@@ -44,3 +44,6 @@ Tornar a referência A4 ajustável (432–446 Hz), adicionar presets de afinaç�
 - [ ] Preset Drop D: tocar D1 (36.71 Hz) seleciona a corda D1, não E1.
 - [ ] Strobe para quando |cents| < tolerância e inverte o sentido entre sharp e flat; sem jank a 60 fps.
 - [ ] Clippy e `vue-tsc` limpos.
+
+
+> Nota do passo 5: `DspPipeline::set_a4_hz` existe; falta propagar o A4 da UI via atômico em `SharedControls` + command.

@@ -35,3 +35,6 @@ Criar a ponte tipada entre Vue e o backend: tipos TS espelhando os payloads Rust
 - [ ] `pnpm vue-tsc --noEmit` passa em modo strict.
 - [ ] Com o app rodando, o componente de debug mostra pico/nota atualizando suavemente; trocar de rota/desmontar não deixa listeners vazando (verificar contagem de `listen`).
 - [ ] Toggle via `useBassMode` reflete no `SignalFrame.mode` vindo do backend.
+
+
+> Nota do passo 5: chamar `get_engine_status` ao montar (o `engine-status` inicial pode ser emitido antes do `listen`). Eventos: `signal-frame`, `engine-status`; commands: `set_bass_mode`, `get_engine_status`, `list_input_devices`, `restart_engine`. Medir no devtools os ~60 eventos/s.
