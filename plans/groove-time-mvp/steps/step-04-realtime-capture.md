@@ -1,6 +1,6 @@
 # Step 4: Callback RT lock-free + ring buffer + ganho atômico
 
-**Status:** pending
+**Status:** done
 **Depends on:** 2, 3
 
 ## Goal
@@ -37,10 +37,10 @@ Construir e iniciar o stream de captura `cpal` com uma callback de tempo real qu
 
 ## Acceptance criteria
 
-- [ ] Teste de integração (pode ser `#[ignore]` por exigir hardware) que inicia captura no device default por 2 s e verifica que amostras chegaram ao consumer e `dropped_samples == 0` com consumidor ativo.
-- [ ] Teste unitário da função pura de "extrair canal + aplicar ganho + push" usando um buffer intercalado sintético e um `rtrb` real.
-- [ ] Revisão manual: a closure da callback não contém nenhuma das construções proibidas (listar no PR/resumo do passo).
-- [ ] Clippy limpo.
+- [x] Teste de integração (pode ser `#[ignore]` por exigir hardware) que inicia captura no device default por 2 s e verifica que amostras chegaram ao consumer e `dropped_samples == 0` com consumidor ativo.
+- [x] Teste unitário da função pura de "extrair canal + aplicar ganho + push" usando um buffer intercalado sintético e um `rtrb` real.
+- [x] Revisão manual: a closure da callback não contém nenhuma das construções proibidas (listar no PR/resumo do passo).
+- [x] Clippy limpo.
 
 ## Notes for execution
 
@@ -48,3 +48,14 @@ Construir e iniciar o stream de captura `cpal` com uma callback de tempo real qu
 
 
 > Nota do passo 2: PCMs-plugin do ALSA reportam faixas de rate/canais irreais; ao abrir o stream, ler e logar a rate efetiva e tratar falha de build com fallback para outra config.
+
+## Result
+
+- Criado `src-tauri/src/audio/capture.rs` (+ reexports em `audio/mod.rs`) e `src-tauri/tests/capture_hw.rs` (`#[ignore]`: `cargo test --test capture_hw -- --ignored --nocapture`).
+- API: `SharedControls` (atômicos: `gain_bits`, `channel_index`, `dropped_samples`, `stream_error`; `set_active_mode(bool)` → `GAIN_PASSIVE = 1.0` / `GAIN_ACTIVE = 0.25118864` = -12 dB); `start_capture(&Device, CaptureConfig, Arc<SharedControls>) -> Result<Capture, AudioError>`; `Capture { stream, consumer: Consumer<f32>, controls, config }` (`config` é a configuração efetivamente usada).
+- **Decisões (defaults do plano):** canal alvo mutável em runtime via atômico (clamp ao nº de canais); device só muda reiniciando; um canal só (sem downmix); ganho sem rampa. **`cpal::Stream` é `Send + Sync` no ALSA** (asserção do próprio cpal), então não há thread dona: o stream vive em `Capture`; soltar a struct encerra a captura.
+- Usei `build_input_stream_raw` + `Data::as_slice::<T>()` (evita o `expect` interno do `build_input_stream`); formatos suportados: I16, I24, I32, F32, F64. Ring de 0.5 s (rate × 0.5 amostras). Push por amostra (não usei `write_chunk_uninit`; drops contados localmente e somados 1× por callback).
+- **Fallback (nota do passo 2):** se a config escolhida falhar ao abrir, cai para `default_input_config()` do device e loga; a rate efetiva fica em `Capture.config`.
+- **Revisão da callback RT** (closure em `build_stream` + `process_interleaved`): contém apenas `as_slice` (sem alocação), loads/stores/`fetch_add` atômicos Relaxed, `chunks_exact`, `get`, `min`, multiplicação e `Producer::push`. Sem `Mutex`/`RwLock`, `Vec`/`String`/`Box`/`format!`, log/print, `unwrap`/`expect` (e `chunks_exact(0)` protegido por guarda).
+- Verificação: 31 testes unitários (5 novos: extração de canal + ganho, conversão I16/I32, drops com ring cheio, clamp de canal/0 canais, ganho/modo); clippy `--all-targets -D warnings` limpo; teste de integração rodou no `default` (PipeWire): ~370k amostras em 2 s a 192000 Hz, 1 canal, 0 drops, sem erro de stream. **O PipeWire entregou 192 kHz de fato** nesta máquina; falta confirmar com a Q-24 real (passo 14).
+- Para o passo 5: o consumidor precisa drenar o ring continuamente; ler `has_stream_error()` periodicamente; criar o `Yin` com `Decimator::output_rate()`.
