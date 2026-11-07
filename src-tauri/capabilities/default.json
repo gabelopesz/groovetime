@@ -6,6 +6,8 @@
   "permissions": [
     "core:event:default",
     "allow-set-bass-mode",
+    "allow-reset-clip-count",
+    "allow-set-gate-dbfs",
     "allow-get-engine-status",
     "allow-list-input-devices",
     "allow-restart-engine"

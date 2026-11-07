@@ -6,10 +6,12 @@ import type { PitchInfo } from "../types/engine";
 const props = withDefaults(
   defineProps<{
     pitch: PitchInfo | null;
+    /** Nível abaixo do gate (a nota está escondida). */
+    gated?: boolean;
     strings?: TuningString[];
     toleranceCents?: number;
   }>(),
-  { strings: () => DEFAULT_TUNING.strings, toleranceCents: IN_TUNE_CENTS },
+  { gated: false, strings: () => DEFAULT_TUNING.strings, toleranceCents: IN_TUNE_CENTS },
 );
 
 const MINUS = "−";
@@ -23,7 +25,7 @@ const freq = computed(() => (props.pitch ? props.pitch.freq_hz.toFixed(2) : "—
 
 const signed = (v: number) => `${v >= 0 ? "+" : MINUS}${Math.abs(v).toFixed(0)}`;
 const status = computed(() => {
-  if (!hasSignal.value) return "Sem sinal";
+  if (!hasSignal.value) return props.gated ? "Abaixo do gate" : "Sem sinal";
   if (inTune.value) return "Afinado";
   return `${cents.value > 0 ? "Agudo" : "Grave"} ${signed(cents.value)}¢`;
 });

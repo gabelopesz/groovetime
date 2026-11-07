@@ -20,6 +20,16 @@ export interface SignalFrame {
   over_threshold: boolean;
   clipped_recently: boolean;
   pitch: PitchInfo | null;
+  /** RMS (~300 ms) em dBFS. */
+  rms_dbfs: number;
+  /** Eventos de clip (cruzamentos de -3 dBFS) desde o último reset. */
+  clip_count: number;
+  /** Ruído de fundo em dBFS; null até haver silêncio suficiente. */
+  noise_floor_dbfs: number | null;
+  /** DC offset em % de full scale. */
+  dc_offset: number;
+  /** Nível abaixo do gate: a nota fica escondida. */
+  gated: boolean;
   mode: BassMode;
   sample_rate: number;
   dropped_samples: number;
@@ -41,7 +51,13 @@ export interface EngineStatus {
   message: string | null;
   stream: StreamInfo | null;
   mode: BassMode;
+  gate_dbfs: number;
 }
+
+/** Faixa válida do gate (mesmos limites do backend). */
+export const GATE_MIN_DBFS = -80;
+export const GATE_MAX_DBFS = -20;
+export const DEFAULT_GATE_DBFS = -50;
 
 export interface DeviceInfo {
   id: string;

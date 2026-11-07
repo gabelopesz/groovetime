@@ -8,12 +8,19 @@ import {
   dbToPosition,
 } from "../utils/meterScale";
 
-const props = defineProps<{
-  peakDbfs: number;
-  peakHoldDbfs: number;
-  overThreshold: boolean;
-  clippedRecently: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    peakDbfs: number;
+    peakHoldDbfs: number;
+    overThreshold: boolean;
+    clippedRecently: boolean;
+    rmsDbfs?: number;
+    clipCount?: number;
+  }>(),
+  { rmsDbfs: -120, clipCount: 0 },
+);
+
+const emit = defineEmits<{ resetClips: [] }>();
 
 /** Velocidade de queda do nível exibido (ataque instantâneo, release suave). */
 const FALL_DB_PER_SEC = 50;
@@ -44,6 +51,10 @@ const revealStyle = computed(() => ({
 }));
 const brightStyle = computed(() => ({
   transform: `translateX(${((1 - position.value) * 100).toFixed(2)}%)`,
+}));
+// RMS: faixa fina sob o meter (scaleX com origem à esquerda; só transform).
+const rmsStyle = computed(() => ({
+  transform: `scaleX(${dbToPosition(props.rmsDbfs).toFixed(4)})`,
 }));
 const holdStyle = computed(() => ({
   transform: `translateX(${(holdPosition.value * 100).toFixed(2)}%)`,
@@ -83,13 +94,26 @@ const ticks = METER_TICKS.map((db) => ({
         <div class="reveal" :style="revealStyle">
           <div class="cells bright" :style="brightStyle"></div>
         </div>
+        <div class="rms" :style="rmsStyle"></div>
         <div class="hold" :style="holdStyle"></div>
       </div>
 
-      <div class="led" :class="{ on: ledOn }" role="status">
-        <span class="lamp" aria-hidden="true"></span>
-        <span class="led-label">PEAK</span>
-        <span class="sr-only">{{ ledOn ? "Sinal acima de menos 3 dBFS" : "Sinal normal" }}</span>
+      <div class="side">
+        <div class="led" :class="{ on: ledOn }" role="status">
+          <span class="lamp" aria-hidden="true"></span>
+          <span class="led-label">PEAK</span>
+          <span class="sr-only">{{ ledOn ? "Sinal acima de menos 3 dBFS" : "Sinal normal" }}</span>
+        </div>
+        <button
+          type="button"
+          class="clips"
+          :class="{ has: clipCount > 0 }"
+          :disabled="clipCount === 0"
+          :aria-label="`${clipCount} clips. Zerar contador`"
+          @click="emit('resetClips')"
+        >
+          <b>{{ clipCount }}</b> clips <span aria-hidden="true">✕</span>
+        </button>
       </div>
     </div>
 
@@ -180,12 +204,65 @@ const ticks = METER_TICKS.map((db) => ({
   box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
 }
 
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 72px;
+}
+
+.rms {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: rgb(255 255 255 / 0.85);
+  box-shadow: 0 -1px 4px rgb(0 0 0 / 0.5);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.clips {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 11px/1.3 var(--font-sans);
+  cursor: pointer;
+}
+
+.clips b {
+  font: 700 12px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.clips.has {
+  color: #fff;
+  border-color: var(--led-red);
+  background: rgb(255 59 74 / 0.28);
+}
+
+.clips:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.clips:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .led {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 48px;
 }
 
 .lamp {
@@ -238,7 +315,7 @@ const ticks = METER_TICKS.map((db) => ({
 .scale {
   position: relative;
   height: 14px;
-  margin: 4px 64px 0 0; /* alinha com .meter (largura do LED + gap) */
+  margin: 4px 88px 0 0; /* alinha com .meter (largura de .side + gap) */
 }
 
 .tick {

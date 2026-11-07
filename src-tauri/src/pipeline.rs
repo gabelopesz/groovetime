@@ -3,12 +3,14 @@
 
 use serde::Serialize;
 
-use crate::audio::capture::{GAIN_ACTIVE, GAIN_PASSIVE};
+use crate::audio::capture::{DEFAULT_GATE_DBFS, GAIN_ACTIVE, GAIN_PASSIVE};
 use crate::dsp::note::DEFAULT_A4_HZ;
 use crate::dsp::peak::FLOOR_DBFS;
+use crate::dsp::rms::RMS_WINDOW_SECS;
+use crate::dsp::dc::DC_WINDOW_SECS;
 use crate::dsp::{
-    Decimator, MAX_PITCH_HZ, MIN_PITCH_HZ, PITCH_SAMPLE_RATE, PeakMeter, PitchSmoother,
-    YIN_WINDOW, Yin, freq_to_note,
+    ClipCounter, DcOffset, Decimator, MAX_PITCH_HZ, MIN_PITCH_HZ, NoiseFloor, PITCH_SAMPLE_RATE,
+    PeakMeter, PitchSmoother, RmsMeter, YIN_WINDOW, Yin, freq_to_note,
 };
 
 /// Por quanto tempo `clipped_recently` fica ligado apos cruzar o limiar.
@@ -54,6 +56,16 @@ pub struct SignalFrame {
     /// Pico >= limiar nos ultimos `CLIP_HOLD_SECS`.
     pub clipped_recently: bool,
     pub pitch: Option<PitchInfo>,
+    /// RMS (~300 ms) em dBFS.
+    pub rms_dbfs: f32,
+    /// Eventos de clip (cruzamentos de -3 dBFS) desde o ultimo reset.
+    pub clip_count: u32,
+    /// Ruido de fundo (dBFS); `None` ate haver ~2 s de silencio.
+    pub noise_floor_dbfs: Option<f32>,
+    /// DC offset em % de full scale.
+    pub dc_offset: f32,
+    /// Nivel abaixo do gate: a nota fica escondida.
+    pub gated: bool,
     pub mode: BassMode,
     pub sample_rate: u32,
     pub dropped_samples: u64,
@@ -65,6 +77,14 @@ pub struct DspPipeline {
     decimator: Decimator,
     yin: Yin,
     smoother: PitchSmoother,
+    rms: RmsMeter,
+    clip: ClipCounter,
+    noise: NoiseFloor,
+    dc: DcOffset,
+    gate_dbfs: f32,
+    rms_dbfs: f32,
+    /// Duracao de audio processada desde o ultimo frame.
+    elapsed_secs: f32,
     a4_hz: f32,
     /// Janela circular do sinal decimado.
     window: Vec<f32>,
@@ -89,6 +109,13 @@ impl DspPipeline {
             decimator,
             yin,
             smoother: PitchSmoother::new(PITCH_HOLD_FRAMES),
+            rms: RmsMeter::new(sample_rate, RMS_WINDOW_SECS),
+            clip: ClipCounter::new(),
+            noise: NoiseFloor::new(),
+            dc: DcOffset::new(sample_rate, DC_WINDOW_SECS),
+            gate_dbfs: DEFAULT_GATE_DBFS,
+            rms_dbfs: FLOOR_DBFS,
+            elapsed_secs: 0.0,
             a4_hz: DEFAULT_A4_HZ,
             window: vec![0.0; window_size],
             window_pos: 0,
@@ -106,7 +133,12 @@ impl DspPipeline {
     }
 
     pub fn set_gate_dbfs(&mut self, gate_dbfs: f32) {
+        self.gate_dbfs = gate_dbfs;
         self.yin.set_gate_dbfs(gate_dbfs);
+    }
+
+    pub fn reset_clips(&mut self) {
+        self.clip.reset();
     }
 
     /// Alimenta o pipeline com um bloco de amostras (taxa cheia, ja com ganho).
@@ -118,12 +150,16 @@ impl DspPipeline {
         self.interval_peak_dbfs = self.interval_peak_dbfs.max(reading.peak_dbfs);
         self.interval_over |= reading.over_threshold;
         self.hold_dbfs = reading.hold_dbfs;
+        let dt = block.len() as f32 / self.sample_rate as f32;
         if reading.over_threshold {
             self.clip_remaining_secs = CLIP_HOLD_SECS;
         } else {
-            let dt = block.len() as f32 / self.sample_rate as f32;
             self.clip_remaining_secs = (self.clip_remaining_secs - dt).max(0.0);
         }
+        self.clip.update(reading.peak_dbfs, dt);
+        self.rms_dbfs = self.rms.process(block);
+        self.dc.process(block);
+        self.elapsed_secs += dt;
 
         let (window, pos, filled) = (&mut self.window, &mut self.window_pos, &mut self.window_filled);
         let len = window.len();
@@ -138,7 +174,9 @@ impl DspPipeline {
     pub fn frame(&mut self, mode: BassMode, dropped_samples: u64) -> SignalFrame {
         let estimate = self.detect_pitch();
         let smoothed = self.smoother.update(estimate);
-        let pitch = smoothed.and_then(|freq_hz| {
+        // Gate: abaixo do limiar a nota some (RMS e diagnostico continuam).
+        let gated = self.rms_dbfs < self.gate_dbfs;
+        let pitch = smoothed.filter(|_| !gated).and_then(|freq_hz| {
             freq_to_note(freq_hz, self.a4_hz).map(|n| PitchInfo {
                 freq_hz,
                 note: n.name,
@@ -147,12 +185,21 @@ impl DspPipeline {
             })
         });
 
+        let quiet = estimate.is_none() && gated;
+        self.noise.update(self.rms_dbfs, quiet, self.elapsed_secs);
+        self.elapsed_secs = 0.0;
+
         let frame = SignalFrame {
             peak_dbfs: self.interval_peak_dbfs,
             peak_hold_dbfs: self.hold_dbfs,
             over_threshold: self.interval_over,
             clipped_recently: self.clip_remaining_secs > 0.0,
             pitch,
+            rms_dbfs: self.rms_dbfs,
+            clip_count: self.clip.count(),
+            noise_floor_dbfs: self.noise.value(),
+            dc_offset: self.dc.percent(),
+            gated,
             mode,
             sample_rate: self.sample_rate,
             dropped_samples,
@@ -252,6 +299,50 @@ mod tests {
         feed_all(&mut active, &scaled);
         let d = passive.frame(BassMode::Passive, 0).peak_dbfs - active.frame(BassMode::Active, 0).peak_dbfs;
         assert!((d - 12.0).abs() < 0.1, "{d}");
+    }
+
+    #[test]
+    fn rms_clip_count_and_dc_in_frame() {
+        let mut p = DspPipeline::new(RATE);
+        feed_all(&mut p, &bass_tone(55.0, 0.95, 0.6));
+        let f = p.frame(BassMode::Passive, 0);
+        assert_eq!(f.clip_count, 1);
+        assert!(f.rms_dbfs < -3.0 && f.rms_dbfs > -12.0, "{}", f.rms_dbfs);
+        assert!(f.dc_offset.abs() < 1.0, "{}", f.dc_offset);
+        p.reset_clips();
+        assert_eq!(p.frame(BassMode::Passive, 0).clip_count, 0);
+    }
+
+    #[test]
+    fn gate_hides_the_note_and_is_adjustable() {
+        let mut p = DspPipeline::new(RATE);
+        // Tom a ~ -26 dBFS RMS: acima do gate padrao (-50).
+        feed_all(&mut p, &bass_tone(55.0, 0.06, 0.6));
+        let f = p.frame(BassMode::Passive, 0);
+        assert!(!f.gated && f.pitch.is_some());
+        p.set_gate_dbfs(-20.0);
+        let f = p.frame(BassMode::Passive, 0);
+        assert!(f.gated && f.pitch.is_none());
+        p.set_gate_dbfs(-50.0);
+        assert!(!p.frame(BassMode::Passive, 0).gated);
+    }
+
+    #[test]
+    fn noise_floor_appears_after_silence_and_is_none_with_tone() {
+        let mut p = DspPipeline::new(RATE);
+        feed_all(&mut p, &bass_tone(55.0, 0.5, 0.6));
+        assert!(p.frame(BassMode::Passive, 0).noise_floor_dbfs.is_none());
+        // 6 s de "silencio" com ruido muito baixo (o RMS de 300 ms leva ~3 s para cair abaixo do gate).
+        let hiss: Vec<f32> = (0..384).map(|i| if i % 2 == 0 { 3e-4 } else { -3e-4 }).collect();
+        let mut last = None;
+        for _ in 0..((6.0 * RATE as f32 / 384.0) as usize) {
+            p.feed(&hiss);
+            if p.elapsed_secs >= 0.016 {
+                last = p.frame(BassMode::Passive, 0).noise_floor_dbfs;
+            }
+        }
+        let v = last.expect("noise floor");
+        assert!((v + 70.5).abs() < 2.0, "{v}");
     }
 
     #[test]

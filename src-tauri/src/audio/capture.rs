@@ -18,6 +18,10 @@ use super::error::AudioError;
 pub const GAIN_PASSIVE: f32 = 1.0;
 /// Ganho do modo Ativo: -12 dB (`10^(-12/20)`).
 pub const GAIN_ACTIVE: f32 = 0.251_188_64;
+/// Gate padrao e faixa valida (dBFS).
+pub const DEFAULT_GATE_DBFS: f32 = -50.0;
+pub const GATE_MIN_DBFS: f32 = -80.0;
+pub const GATE_MAX_DBFS: f32 = -20.0;
 /// Duracao do ring buffer, em segundos de audio.
 const RING_SECONDS: f32 = 0.5;
 
@@ -26,6 +30,8 @@ const RING_SECONDS: f32 = 0.5;
 pub struct SharedControls {
     gain_bits: AtomicU32,
     channel_index: AtomicUsize,
+    gate_bits: AtomicU32,
+    reset_clips: AtomicBool,
     /// Amostras descartadas por ring cheio.
     pub dropped_samples: AtomicU64,
     /// Erro de stream (device removido, formato inesperado, ...).
@@ -37,6 +43,8 @@ impl SharedControls {
         Self {
             gain_bits: AtomicU32::new(GAIN_PASSIVE.to_bits()),
             channel_index: AtomicUsize::new(target_channel),
+            gate_bits: AtomicU32::new(DEFAULT_GATE_DBFS.to_bits()),
+            reset_clips: AtomicBool::new(false),
             dropped_samples: AtomicU64::new(0),
             stream_error: AtomicBool::new(false),
         }
@@ -61,6 +69,25 @@ impl SharedControls {
 
     pub fn set_channel(&self, channel: usize) {
         self.channel_index.store(channel, Ordering::Relaxed);
+    }
+
+    /// Gate de nivel (dBFS) lido pela thread DSP.
+    pub fn gate_dbfs(&self) -> f32 {
+        f32::from_bits(self.gate_bits.load(Ordering::Relaxed))
+    }
+
+    pub fn set_gate_dbfs(&self, gate_dbfs: f32) {
+        self.gate_bits.store(gate_dbfs.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Pede o reset do contador de clips (consumido pela thread DSP).
+    pub fn request_clip_reset(&self) {
+        self.reset_clips.store(true, Ordering::Relaxed);
+    }
+
+    /// Consome o pedido de reset (`true` uma unica vez por pedido).
+    pub fn take_clip_reset(&self) -> bool {
+        self.reset_clips.swap(false, Ordering::Relaxed)
     }
 
     pub fn dropped(&self) -> u64 {
@@ -273,6 +300,18 @@ mod tests {
         assert_eq!(drain(&mut c), vec![0.9]);
         process_interleaved(&[0.1f32], 0, 0, 1.0, &mut p, &dropped);
         assert!(drain(&mut c).is_empty());
+    }
+
+    #[test]
+    fn controls_gate_and_clip_reset() {
+        let c = SharedControls::new(0);
+        assert_eq!(c.gate_dbfs(), DEFAULT_GATE_DBFS);
+        c.set_gate_dbfs(-42.5);
+        assert_eq!(c.gate_dbfs(), -42.5);
+        assert!(!c.take_clip_reset());
+        c.request_clip_reset();
+        assert!(c.take_clip_reset());
+        assert!(!c.take_clip_reset());
     }
 
     #[test]

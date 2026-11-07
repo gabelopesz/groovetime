@@ -4,7 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   mockGetStatus,
   mockListDevices,
+  mockResetClips,
   mockSetBassMode,
+  mockSetGate,
 } from "../mock/engine";
 import type { BassMode, DeviceInfo, EngineStatus } from "../types/engine";
 import { isTauri } from "./events";
@@ -28,6 +30,17 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 export async function setBassMode(mode: BassMode): Promise<void> {
   if (!isTauri()) return mockSetBassMode(mode);
   await call<void>("set_bass_mode", { mode });
+}
+
+export async function resetClipCount(): Promise<void> {
+  if (!isTauri()) return mockResetClips();
+  await call<void>("reset_clip_count");
+}
+
+/** Gate em dBFS (-80…-20); fora da faixa o backend devolve `CommandError`. */
+export async function setGateDbfs(value: number): Promise<void> {
+  if (!isTauri()) return mockSetGate(value);
+  await call<void>("set_gate_dbfs", { value });
 }
 
 export async function getEngineStatus(): Promise<EngineStatus> {

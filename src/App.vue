@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { resetClipCount } from "./api/engine";
 import BassModeToggle from "./components/BassModeToggle.vue";
+import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import MeshBackground from "./components/MeshBackground.vue";
 import PeakMeter from "./components/PeakMeter.vue";
 import StatusFooter from "./components/StatusFooter.vue";
@@ -7,6 +9,10 @@ import TunerDisplay from "./components/TunerDisplay.vue";
 import { useSignalFrame } from "./composables/useSignalFrame";
 
 const { frame } = useSignalFrame();
+
+function onResetClips() {
+  resetClipCount().catch((e) => console.error("reset_clip_count falhou", e));
+}
 </script>
 
 <template>
@@ -14,7 +20,7 @@ const { frame } = useSignalFrame();
   <main class="app">
     <h1 class="sr-only">Groove Time</h1>
     <section class="panel hero">
-      <TunerDisplay :pitch="frame?.pitch ?? null" />
+      <TunerDisplay :pitch="frame?.pitch ?? null" :gated="frame?.gated ?? false" />
     </section>
     <section class="panel">
       <PeakMeter
@@ -22,10 +28,16 @@ const { frame } = useSignalFrame();
         :peak-hold-dbfs="frame?.peak_hold_dbfs ?? -120"
         :over-threshold="frame?.over_threshold ?? false"
         :clipped-recently="frame?.clipped_recently ?? false"
+        :rms-dbfs="frame?.rms_dbfs ?? -120"
+        :clip-count="frame?.clip_count ?? 0"
+        @reset-clips="onResetClips"
       />
     </section>
     <section class="panel">
       <BassModeToggle :confirmed-mode="frame?.mode ?? null" />
+    </section>
+    <section class="panel">
+      <DiagnosticsPanel :frame="frame" />
     </section>
     <StatusFooter />
   </main>

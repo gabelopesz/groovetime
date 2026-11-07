@@ -19,6 +19,8 @@ const ACTIVE_ATTENUATION_DB = 12;
 const CLIP_HOLD_MS = 1500;
 
 let mode: BassMode = "passive";
+let gate = -50;
+let clipCount = 0;
 const status: EngineStatus = {
   state: "running",
   message: null,
@@ -31,6 +33,7 @@ const status: EngineStatus = {
     below_target_rate: false,
   },
   mode,
+  gate_dbfs: gate,
 };
 
 /** `?failmode` na URL simula falha do command (para testar o rollback). */
@@ -42,7 +45,18 @@ export function mockSetBassMode(next: BassMode): void {
 }
 
 export function mockGetStatus(): EngineStatus {
-  return { ...status, mode };
+  return { ...status, mode, gate_dbfs: gate };
+}
+
+export function mockSetGate(value: number): void {
+  if (!Number.isFinite(value) || value < -80 || value > -20) {
+    throw new Error("valor invalido: gate deve estar entre -80 e -20 dBFS");
+  }
+  gate = value;
+}
+
+export function mockResetClips(): void {
+  clipCount = 0;
 }
 
 export function mockListDevices(): DeviceInfo[] {
@@ -56,6 +70,8 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
   const start = performance.now();
   let lastOver = -Infinity;
   let hold = -120;
+  let wasOver = false;
+  let silentSince = performance.now();
   let holdSince = start;
   const timer = setInterval(() => {
     const t = (performance.now() - start) / 1000;
@@ -71,8 +87,13 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
     const over = playing && peak >= -3;
     const now = performance.now();
     if (over) lastOver = now;
+    if (over && !wasOver) clipCount += 1;
+    wasOver = over;
+    if (playing) silentSince = now;
     // Hold de 1.5 s e queda de 20 dB/s, como o backend.
     const pk = playing ? peak : -120;
+    const rms = playing ? pk - 7 : -120;
+    const gated = rms < gate;
     if (pk >= hold) {
       hold = pk;
       holdSince = now;
@@ -84,9 +105,14 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
       peak_hold_dbfs: hold,
       over_threshold: over,
       clipped_recently: performance.now() - lastOver < CLIP_HOLD_MS,
-      pitch: playing
+      pitch: playing && !gated
         ? { freq_hz: n.freq, note: n.note, octave: n.octave, cents: Math.sin(t * 2) * 12 }
         : null,
+      rms_dbfs: rms,
+      clip_count: clipCount,
+      noise_floor_dbfs: now - silentSince > 2000 ? -72.4 : null,
+      dc_offset: 0.4,
+      gated,
       mode,
       sample_rate: 192000,
       dropped_samples: 0,

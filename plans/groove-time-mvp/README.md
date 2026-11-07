@@ -35,7 +35,7 @@ Construir o "Groove Time", app desktop Linux (Tauri v2 + Rust + Vue 3/TS) que ca
 | 7 | [Componente VU meter / LED PEAK](steps/step-07-vu-meter.md) | done | 6 |
 | 8 | [Afinador + toggle Ativo/Passivo](steps/step-08-tuner-and-mode.md) | done | 6 |
 | 9 | [Mesh gradient CSS + layout final](steps/step-09-mesh-gradient-layout.md) | done | 7, 8 |
-| 10 | [Métricas extras: RMS, contador de clips, noise floor/DC, gate](steps/step-10-signal-metrics.md) | pending | 9 |
+| 10 | [Métricas extras: RMS, contador de clips, noise floor/DC, gate](steps/step-10-signal-metrics.md) | done | 9 |
 | 11 | [Afinador avançado: A4 ajustável, presets, strobe](steps/step-11-tuner-extras.md) | pending | 9 |
 | 12 | [Persistência de preferências (JSON em ~/.config)](steps/step-12-settings-persistence.md) | pending | 10, 11 |
 | 13 | [Modo mini / sempre no topo](steps/step-13-mini-mode.md) | pending | 12 |

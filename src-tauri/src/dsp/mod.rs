@@ -1,14 +1,22 @@
 //! DSP puro (sem audio/Tauri): pico em dBFS, decimacao, YIN e conversao de notas.
 
+pub mod clip;
+pub mod dc;
 pub mod decimate;
+pub mod noise;
 pub mod note;
 pub mod peak;
+pub mod rms;
 pub mod smooth;
 pub mod yin;
 
+pub use clip::ClipCounter;
+pub use dc::DcOffset;
 pub use decimate::Decimator;
+pub use noise::NoiseFloor;
 pub use note::{NoteInfo, freq_to_note, note_to_freq};
 pub use peak::{PEAK_ALERT_DBFS, PeakMeter, PeakReading};
+pub use rms::RmsMeter;
 pub use smooth::PitchSmoother;
 pub use yin::{PitchEstimate, Yin};
 

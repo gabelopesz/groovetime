@@ -31,6 +31,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::set_bass_mode,
+            commands::reset_clip_count,
+            commands::set_gate_dbfs,
             commands::get_engine_status,
             commands::list_input_devices,
             commands::restart_engine,

@@ -39,6 +39,7 @@ pub struct EngineStatus {
     pub message: Option<String>,
     pub stream: Option<StreamInfo>,
     pub mode: BassMode,
+    pub gate_dbfs: f32,
 }
 
 /// Handle de um engine em execucao. `stop` (ou drop) encerra a thread e o stream.
@@ -112,12 +113,23 @@ fn dsp_loop(
     on_error: impl FnOnce(String),
 ) {
     let mut pipeline = DspPipeline::new(sample_rate);
+    pipeline.set_gate_dbfs(controls.gate_dbfs());
+    let mut applied_gate = controls.gate_dbfs();
     let mut next_frame = Instant::now() + FRAME_INTERVAL;
 
     while !shutdown.load(Ordering::Acquire) {
         if controls.has_stream_error() {
             on_error("o stream de audio falhou (device desconectado?)".to_owned());
             return;
+        }
+
+        let gate = controls.gate_dbfs();
+        if gate != applied_gate {
+            pipeline.set_gate_dbfs(gate);
+            applied_gate = gate;
+        }
+        if controls.take_clip_reset() {
+            pipeline.reset_clips();
         }
 
         let available = consumer.slots();
@@ -165,6 +177,7 @@ impl AppState {
                 message: None,
                 stream: None,
                 mode: BassMode::from_gain(controls.gain()),
+                gate_dbfs: controls.gate_dbfs(),
             }),
             controls,
         }
@@ -173,6 +186,7 @@ impl AppState {
     pub fn status(&self) -> EngineStatus {
         let mut status = lock(&self.status).clone();
         status.mode = BassMode::from_gain(self.controls.gain());
+        status.gate_dbfs = self.controls.gate_dbfs();
         status
     }
 
@@ -202,6 +216,7 @@ impl AppState {
                 message: None,
                 stream: None,
                 mode: BassMode::from_gain(self.controls.gain()),
+                gate_dbfs: self.controls.gate_dbfs(),
             },
         );
 
@@ -232,6 +247,7 @@ impl AppState {
                     message: None,
                     stream: Some(handle.info.clone()),
                     mode: BassMode::from_gain(self.controls.gain()),
+                    gate_dbfs: self.controls.gate_dbfs(),
                 };
                 *lock(&self.engine) = Some(handle);
                 status
@@ -243,6 +259,7 @@ impl AppState {
                     message: Some(e.to_string()),
                     stream: None,
                     mode: BassMode::from_gain(self.controls.gain()),
+                    gate_dbfs: self.controls.gate_dbfs(),
                 }
             }
         };
