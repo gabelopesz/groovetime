@@ -31,9 +31,14 @@ const failed = computed(() => status.value?.state === "error");
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  padding: 8px 16px;
-  font: 11px/1.4 system-ui, sans-serif;
-  color: rgb(255 255 255 / 0.4);
+  align-self: center;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel-bg);
+  font: 11px/1.4 var(--font-sans);
+  color: var(--text-muted);
 }
 
 .err {

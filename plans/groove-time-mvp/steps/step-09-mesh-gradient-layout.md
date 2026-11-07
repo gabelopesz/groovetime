@@ -1,6 +1,6 @@
 # Step 9: Mesh gradient CSS + layout final
 
-**Status:** pending
+**Status:** done
 **Depends on:** 7, 8
 
 ## Goal
@@ -34,7 +34,16 @@ Montar o layout final do app e o fundo "mesh gradient" 100% CSS (múltiplos `rad
 
 ## Acceptance criteria
 
-- [ ] Fundo implementado só com CSS (`radial-gradient` + `blur`), visual de manchas orgânicas azul/laranja/amarelo-bege.
-- [ ] `pnpm tauri dev`: uso de CPU da WebView com sinal ativo razoável (comparar com/sem blur; anotar números) e sem queda perceptível de fps.
-- [ ] Contraste de texto principal ≥ 4.5:1 sobre os painéis.
-- [ ] Layout funciona do tamanho mínimo ao maximizado.
+- [x] `MeshBackground.vue`: 4 blobs (azul, laranja, amarelo, bege) com `radial-gradient` + `filter: blur(70px)`, só CSS (sem imagem/canvas/WebGL). Verificado por screenshot no app Tauri (480×720, 360×560 e 1100×900).
+- [x] (parcial) CPU medido em `pnpm tauri dev` (build **debug**) por 10 s, **com o sinal parado** (mic onboard em silêncio): WebKitWebProcess **10.8%** de 1 core com blobs vs **9.2%** sem blobs (≈ +1.6 pt pelo blur estático); com `backdrop-filter` nos painéis 10.1% (sem diferença mensurável em repouso, mas **não testado com o meter animando** → deixei de fora). O processo `groove-time` (~25%) é o Rust em build debug (DSP a 192 kHz + 60 eventos/s), alheio ao fundo. Não medi fps nem GPU.
+- [x] Contraste calculado no pior caso (painel `rgb(9 11 20 / .64)` sobre amarelo `#ffd36b`/bege `#f3d9a4` em intensidade máxima): texto ≈ 6.4–6.6:1 e texto atenuado ≈ 4.7–4.8:1 (sobre laranja/azul é maior). Rodapé também ganhou fundo de painel. Cálculo teórico, não medido por pixel.
+- [x] Screenshots em 360×560 (mínimo), 480×720 e 1100×900: layout coluna de até 560 px centralizada, afinador em destaque (`flex: 1`); letra do afinador usa `clamp()`.
+
+## Result
+
+- Criados `src/styles/{tokens,fonts,base}.css` (tokens em `:root`: fontes, cores de texto, manchas, painel, estados de LED/afinador), `src/components/MeshBackground.vue`. `App.vue` final: `MeshBackground` + painéis (afinador hero, meter+PEAK, toggle) + rodapé em pílula. **`DebugPanel.vue` removido.** Componentes dos passos 7/8/footer passaram a usar os tokens (`--font-sans`, `--font-mono`, `--text-muted`, `--led-*`, `--tuner-*`, `--meter-bg`).
+- **Decisões do usuário:** fundo **estático**; tema **escuro com manchas vivas**; **Inter + JetBrains Mono empacotadas** (pacotes `@fontsource-variable/*`, só subset latin via `@font-face` próprio em `fonts.css`; `vite.config.ts` com `build.assetsInlineLimit: 0` porque a CSP não permite fontes `data:`). `∞` (U+221E) não está no subset latin e cai na fonte do sistema.
+- Fundo isolado: `position: fixed; contain: strict; will-change: transform; z-index: -1`; manchas em unidades `vmin` com cores sólidas no centro (30%) para ficarem vivas.
+- Painéis **sem** `backdrop-filter` (WebKitGTK re-borraria o fundo a cada frame do meter); `--panel-bg` ajustado para 0.64 por causa do contraste.
+- Janela: 480×720 padrão, mínimo 360×560 (`tauri.conf.json`).
+- Pendências: o glifo "–" da letra em "Sem sinal" ainda é um traço largo; CPU/FPS com sinal real e em build release não medidos (passo 14).

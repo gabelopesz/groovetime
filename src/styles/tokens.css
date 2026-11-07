@@ -1,0 +1,35 @@
+/* Tokens de design do Groove Time (tema escuro, manchas vivas ao fundo). */
+:root {
+  color-scheme: dark;
+
+  /* Tipografia */
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Texto (contraste >= 4.5:1 sobre os painéis, mesmo sobre as manchas mais claras) */
+  --text: #f6f7fb;
+  --text-muted: rgb(246 247 251 / 0.78);
+
+  /* Fundo e manchas */
+  --bg-base: #080a12;
+  --blob-blue: #1f5bff;
+  --blob-orange: #ff7a1a;
+  --blob-yellow: #ffd36b;
+  --blob-beige: #f3d9a4;
+
+  /* Painéis */
+  --panel-bg: rgb(9 11 20 / 0.64);
+  --panel-border: rgb(255 255 255 / 0.14);
+  --panel-radius: 20px;
+  --panel-padding: 16px;
+  --gap: 14px;
+
+  /* Estados (usados por meter e afinador) */
+  --led-green: #38f07a;
+  --led-yellow: #ffd23f;
+  --led-red: #ff3b4a;
+  --tuner-ok: #38f07a;
+  --tuner-off: #ffb347;
+  --meter-bg: rgb(255 255 255 / 0.08);
+  --focus: #8fb4ff;
+}

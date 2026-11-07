@@ -53,7 +53,7 @@ const pending = computed(() => !!props.confirmedMode && props.confirmedMode !== 
   border-radius: 999px;
   background: rgb(255 255 255 / 0.05);
   color: inherit;
-  font: 600 14px/1 system-ui, sans-serif;
+  font: 600 14px/1 var(--font-sans);
   cursor: pointer;
 }
 
@@ -63,7 +63,7 @@ const pending = computed(() => !!props.confirmedMode && props.confirmedMode !== 
 }
 
 .side {
-  color: rgb(255 255 255 / 0.45);
+  color: var(--text-muted);
   transition: color 120ms linear;
 }
 
@@ -105,13 +105,13 @@ const pending = computed(() => !!props.confirmedMode && props.confirmedMode !== 
 
 .help {
   margin: 8px 0 0;
-  font: 12px/1.3 system-ui, sans-serif;
-  color: rgb(255 255 255 / 0.5);
+  font: 12px/1.3 var(--font-sans);
+  color: var(--text-muted);
 }
 
 .error {
   margin: 8px 0 0;
-  font: 600 13px/1.3 system-ui, sans-serif;
+  font: 600 13px/1.3 var(--font-sans);
   color: #ff6b6b;
 }
 

@@ -110,12 +110,7 @@ const ticks = METER_TICKS.map((db) => ({
 
 <style scoped>
 .peak-meter {
-  /* Paleta sobrescrevível pelo layout (passo 9). */
-  --led-green: #2ee86b;
-  --led-yellow: #ffd23f;
-  --led-red: #ff2d3d;
-  --meter-bg: rgb(255 255 255 / 0.06);
-  --meter-height: 28px;
+    --meter-height: 28px;
   --cell-count: 40;
 
   position: relative;
@@ -220,9 +215,9 @@ const ticks = METER_TICKS.map((db) => ({
 }
 
 .led-label {
-  font: 700 11px/1 system-ui, sans-serif;
+  font: 700 11px/1 var(--font-sans);
   letter-spacing: 0.12em;
-  color: rgb(255 255 255 / 0.45);
+  color: var(--text-muted);
 }
 
 .led.on .led-label {
@@ -249,9 +244,9 @@ const ticks = METER_TICKS.map((db) => ({
 .tick {
   position: absolute;
   transform: translateX(-50%);
-  font: 10px/14px system-ui, sans-serif;
+  font: 10px/14px var(--font-sans);
   font-variant-numeric: tabular-nums;
-  color: rgb(255 255 255 / 0.5);
+  color: var(--text-muted);
 }
 
 .tick.alert {
@@ -263,9 +258,9 @@ const ticks = METER_TICKS.map((db) => ({
   margin-top: 2px;
   width: 11ch;
   contain: layout paint;
-  font: 600 13px/1.2 ui-monospace, monospace;
+  font: 600 13px/1.2 var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: rgb(255 255 255 / 0.8);
+  color: var(--text-muted);
 }
 
 .readout small {

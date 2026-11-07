@@ -17,7 +17,7 @@ const hasSignal = computed(() => props.pitch !== null);
 const cents = computed(() => Math.max(-50, Math.min(50, props.pitch?.cents ?? 0)));
 const inTune = computed(() => hasSignal.value && Math.abs(cents.value) <= props.toleranceCents);
 
-const noteLetter = computed(() => props.pitch?.note ?? "—");
+const noteLetter = computed(() => props.pitch?.note ?? "–");
 const octave = computed(() => (props.pitch ? String(props.pitch.octave) : ""));
 const freq = computed(() => (props.pitch ? props.pitch.freq_hz.toFixed(2) : "—"));
 
@@ -81,7 +81,7 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 .tuner {
   --tuner-ok: #2ee86b;
   --tuner-off: #ffb347;
-  --tuner-muted: rgb(255 255 255 / 0.45);
+  --tuner-muted: var(--text-muted);
   padding: 8px 16px 12px;
   text-align: center;
 }
@@ -96,19 +96,19 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 
 .letter {
   min-width: 1.2ch;
-  font: 800 96px/1 system-ui, sans-serif;
+  font: 800 clamp(72px, min(24vw, 15vh), 128px) / 1 var(--font-sans);
   transition: color 120ms linear;
 }
 
 .octave {
-  font: 600 28px/1 system-ui, sans-serif;
+  font: 600 28px/1 var(--font-sans);
   color: var(--tuner-muted);
   min-width: 0.8ch;
   text-align: left;
 }
 
 .hz {
-  font: 600 18px/1.4 ui-monospace, monospace;
+  font: 600 18px/1.4 var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--tuner-muted);
 }
@@ -145,7 +145,7 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 
 .mark.center {
   top: 0;
-  background: rgb(255 255 255 / 0.5);
+  background: var(--text-muted);
 }
 
 .needle-layer {
@@ -171,13 +171,13 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 .gauge-scale {
   display: flex;
   justify-content: space-between;
-  font: 10px/14px system-ui, sans-serif;
+  font: 10px/14px var(--font-sans);
   color: var(--tuner-muted);
 }
 
 .status {
   margin: 8px 0 12px;
-  font: 700 16px/1.2 system-ui, sans-serif;
+  font: 700 16px/1.2 var(--font-sans);
   color: var(--tuner-off);
   min-height: 1.2em;
 }
@@ -196,7 +196,7 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid rgb(255 255 255 / 0.15);
-  font: 700 20px/1 system-ui, sans-serif;
+  font: 700 20px/1 var(--font-sans);
   color: var(--tuner-muted);
   transition: background-color 120ms linear, color 120ms linear;
 }
