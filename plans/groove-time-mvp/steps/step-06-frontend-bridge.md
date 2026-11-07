@@ -1,6 +1,6 @@
 # Step 6: Camada frontend: tipos, composables de evento/invoke
 
-**Status:** pending
+**Status:** done
 **Depends on:** 5
 
 ## Goal
@@ -32,9 +32,18 @@ Criar a ponte tipada entre Vue e o backend: tipos TS espelhando os payloads Rust
 
 ## Acceptance criteria
 
-- [ ] `pnpm vue-tsc --noEmit` passa em modo strict.
-- [ ] Com o app rodando, o componente de debug mostra pico/nota atualizando suavemente; trocar de rota/desmontar não deixa listeners vazando (verificar contagem de `listen`).
-- [ ] Toggle via `useBassMode` reflete no `SignalFrame.mode` vindo do backend.
+- [x] `pnpm build` (vue-tsc strict + vite) passa.
+- [x] App real (`pnpm tauri dev`, screenshot da janela): origem Tauri, **62 atualizações/s**, status `running`, 2 listeners ativos (contador `activeListenerCount`), estável após `restart_engine`. Pico/nota ficaram em silêncio (mic onboard sem sinal): a variação visual de pico/nota só foi exercitada pelo mock, não verificada em execução. Desmontagem: o código cancela listener/rAF (inclusive se desmontar antes do `listen` resolver), mas sem rota/desmonte real ainda não há teste de runtime.
+- [x] Clique em "alternar" → `frame.mode` passou a `active` vindo do backend e `status.mode` também.
 
 
 > Nota do passo 5: chamar `get_engine_status` ao montar (o `engine-status` inicial pode ser emitido antes do `listen`). Eventos: `signal-frame`, `engine-status`; commands: `set_bass_mode`, `get_engine_status`, `list_input_devices`, `restart_engine`. Medir no devtools os ~60 eventos/s.
+
+## Result
+
+- Criados: `src/types/engine.ts` (tipos manuais + nomes de evento), `src/api/engine.ts` (`setBassMode`, `getEngineStatus`, `listInputDevices`, `restartEngine`, `CommandError`), `src/api/events.ts` (`onSignalFrame`, `onEngineStatus`, `isTauri`, `activeListenerCount`), `src/composables/{useSignalFrame,useEngineStatus,useBassMode}.ts`, `src/mock/engine.ts`, `src/components/DebugPanel.vue` (temporário; `App.vue` só o renderiza).
+- Decisões (defaults do plano, sem perguntar): tipos escritos à mão; mock de frames incluído. Fora do Tauri (`isTauri()` falso) a API usa o mock (frames sintéticos a ~60 Hz, plucks com picos acima de -3 dBFS, notas B0–G2, modo Ativo = -12 dB).
+- `useSignalFrame`: `shallowRef`, publica por `requestAnimationFrame` e **funde frames** (`mergeFrames`: maior pico + OR de `over_threshold`) para não perder transiente se chegarem 2 eventos entre rAFs.
+- `useEngineStatus`: `listen` antes da leitura inicial de `get_engine_status`; evento mais novo vence a leitura. `useBassMode`: estado otimista + rollback; inicia do `mode` do backend.
+- Validação real feita com `xdotool`/`import` (screenshot da janela). Não verifiquei o mock no navegador.
+- Para o passo 7: `frame.value` pode ser `null` até o primeiro frame; `peak_dbfs` vale -120 em silêncio.

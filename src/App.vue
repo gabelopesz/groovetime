@@ -1,8 +1,11 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import DebugPanel from "./components/DebugPanel.vue";
+</script>
 
 <template>
   <main class="app">
     <h1>Groove Time</h1>
+    <DebugPanel />
   </main>
 </template>
 
@@ -19,8 +22,12 @@ body {
 }
 
 .app {
-  display: grid;
-  place-items: center;
   min-height: 100vh;
+  padding: 8px;
+}
+
+h1 {
+  margin: 4px 12px;
+  font-size: 18px;
 }
 </style>
