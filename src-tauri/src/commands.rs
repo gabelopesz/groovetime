@@ -5,7 +5,9 @@ use std::sync::Arc;
 use serde::{Serialize, Serializer};
 use tauri::{AppHandle, State};
 
-use crate::audio::{self, AudioError, DeviceInfo, GATE_MAX_DBFS, GATE_MIN_DBFS};
+use crate::audio::{
+    self, A4_MAX_HZ, A4_MIN_HZ, AudioError, DeviceInfo, GATE_MAX_DBFS, GATE_MIN_DBFS,
+};
 use crate::engine::{AppState, EngineStatus};
 use crate::pipeline::BassMode;
 
@@ -43,6 +45,24 @@ pub fn set_gate_dbfs(value: f32, state: State<'_, Arc<AppState>>) -> Result<(), 
     validate_gate(value)?;
     state.controls.set_gate_dbfs(value);
     Ok(())
+}
+
+/// Referencia A4 em Hz; valida em `A4_MIN_HZ..=A4_MAX_HZ`.
+#[tauri::command]
+pub fn set_reference_pitch(hz: f32, state: State<'_, Arc<AppState>>) -> Result<(), CommandError> {
+    validate_reference(hz)?;
+    state.controls.set_reference_hz(hz);
+    Ok(())
+}
+
+fn validate_reference(hz: f32) -> Result<(), CommandError> {
+    if hz.is_finite() && (A4_MIN_HZ..=A4_MAX_HZ).contains(&hz) {
+        Ok(())
+    } else {
+        Err(CommandError::InvalidArgument(format!(
+            "A4 deve estar entre {A4_MIN_HZ} e {A4_MAX_HZ} Hz"
+        )))
+    }
 }
 
 fn validate_gate(value: f32) -> Result<(), CommandError> {
@@ -83,6 +103,16 @@ pub async fn restart_engine(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reference_validation() {
+        for ok in [432.0, 440.0, 446.0] {
+            assert!(validate_reference(ok).is_ok(), "{ok}");
+        }
+        for bad in [500.0, 431.9, 446.1, 0.0, f32::NAN, f32::INFINITY] {
+            assert!(validate_reference(bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn gate_validation() {

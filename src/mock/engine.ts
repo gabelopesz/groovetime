@@ -1,9 +1,11 @@
 // Backend simulado para rodar o frontend no navegador (`pnpm dev`) fora do Tauri.
 
+import { freqToNote } from "../utils/note";
 import type {
   BassMode,
   DeviceInfo,
   EngineStatus,
+  PitchInfo,
   SignalFrame,
 } from "../types/engine";
 
@@ -20,6 +22,7 @@ const CLIP_HOLD_MS = 1500;
 
 let mode: BassMode = "passive";
 let gate = -50;
+let reference = 440;
 let clipCount = 0;
 const status: EngineStatus = {
   state: "running",
@@ -34,6 +37,7 @@ const status: EngineStatus = {
   },
   mode,
   gate_dbfs: gate,
+  reference_hz: reference,
 };
 
 /** `?failmode` na URL simula falha do command (para testar o rollback). */
@@ -45,7 +49,7 @@ export function mockSetBassMode(next: BassMode): void {
 }
 
 export function mockGetStatus(): EngineStatus {
-  return { ...status, mode, gate_dbfs: gate };
+  return { ...status, mode, gate_dbfs: gate, reference_hz: reference };
 }
 
 export function mockSetGate(value: number): void {
@@ -53,6 +57,13 @@ export function mockSetGate(value: number): void {
     throw new Error("valor invalido: gate deve estar entre -80 e -20 dBFS");
   }
   gate = value;
+}
+
+export function mockSetReference(hz: number): void {
+  if (!Number.isFinite(hz) || hz < 432 || hz > 446) {
+    throw new Error("valor invalido: A4 deve estar entre 432 e 446 Hz");
+  }
+  reference = hz;
 }
 
 export function mockResetClips(): void {
@@ -63,6 +74,12 @@ export function mockListDevices(): DeviceInfo[] {
   return [
     { id: "alsa:mock", name: "Mock Q-24", max_channels: 2, sample_rate_ranges: [[44100, 192000]] },
   ];
+}
+
+/** Nota/cents como o backend os calcularia para a frequência e o A4 atuais. */
+function mockPitch(freq: number): PitchInfo | null {
+  const n = freqToNote(freq, reference);
+  return n ? { freq_hz: freq, note: n.name, octave: n.octave, cents: n.cents } : null;
 }
 
 /** Gera frames sintéticos a ~60 Hz; devolve a função de parada. */
@@ -105,9 +122,8 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
       peak_hold_dbfs: hold,
       over_threshold: over,
       clipped_recently: performance.now() - lastOver < CLIP_HOLD_MS,
-      pitch: playing && !gated
-        ? { freq_hz: n.freq, note: n.note, octave: n.octave, cents: Math.sin(t * 2) * 12 }
-        : null,
+      pitch: playing && !gated ? mockPitch(n.freq * 2 ** ((Math.sin(t * 2) * 12) / 1200)) : null,
+      reference_hz: reference,
       rms_dbfs: rms,
       clip_count: clipCount,
       noise_floor_dbfs: now - silentSince > 2000 ? -72.4 : null,

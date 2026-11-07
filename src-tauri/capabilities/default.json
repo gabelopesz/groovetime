@@ -8,6 +8,7 @@
     "allow-set-bass-mode",
     "allow-reset-clip-count",
     "allow-set-gate-dbfs",
+    "allow-set-reference-pitch",
     "allow-get-engine-status",
     "allow-list-input-devices",
     "allow-restart-engine"

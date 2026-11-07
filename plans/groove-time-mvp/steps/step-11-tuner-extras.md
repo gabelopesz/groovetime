@@ -1,6 +1,6 @@
 # Step 11: Afinador avançado: A4 ajustável, presets de afinação e modo strobe
 
-**Status:** pending
+**Status:** done
 **Depends on:** 9
 
 ## Goal
@@ -39,11 +39,22 @@ Tornar a referência A4 ajustável (432–446 Hz), adicionar presets de afinaç�
 
 ## Acceptance criteria
 
-- [ ] Senoide de 54 Hz: com A4 = 432 aparece como A1 com ~0 cents; com A4 = 440 aparece como A1 com ~-32 cents.
-- [ ] `set_reference_pitch(500)` retorna erro.
-- [ ] Preset Drop D: tocar D1 (36.71 Hz) seleciona a corda D1, não E1.
-- [ ] Strobe para quando |cents| < tolerância e inverte o sentido entre sharp e flat; sem jank a 60 fps.
-- [ ] Clippy e `vue-tsc` limpos.
+- [x] Teste do pipeline Rust (`reference_pitch_changes_note_and_cents`) e teste vitest: 54 Hz → A1 com ~0 cents (A4 = 432) e ~-31.8 cents (A4 = 440).
+- [x] `reference_validation` (Rust): 500, 431.9, 446.1, 0, NaN, ∞ rejeitados; 432/440/446 aceitos (`CommandError::InvalidArgument`). `invoke` real só exercitado com valor válido (+1 Hz → 442 no app Tauri, sem erro); o caso 500 está coberto só pelo teste Rust.
+- [x] vitest: Drop D com 36.71 Hz → corda D1 (< 1 cent); no padrão 4 cordas, 36.71 Hz fica a ~200 cents de E1 → fora do alcance (null → cai para a nota do backend).
+- [x] (parcial) Implementado: fase acumulada em rAF, velocidade ∝ cents (suavizada), zero dentro de ±3 cents, agudo → direita / grave → esquerda; só `transform` escrito direto no elemento. Verificado por screenshots no mock (padrão em posições diferentes; "Agudo +11¢" / "Grave −11¢"). **Não observei o strobe parando em ±3 cents nem medi fps/jank**; `prefers-reduced-motion` cai para a agulha por código (`usePrefersReducedMotion`), sem emular a preferência.
+- [x] `cargo clippy --all-targets -D warnings` e `pnpm build` (vue-tsc) limpos; 60 testes Rust + 10 vitest.
 
 
 > Nota do passo 5: `DspPipeline::set_a4_hz` existe; falta propagar o A4 da UI via atômico em `SharedControls` + command.
+
+## Result
+
+- **Backend:** `SharedControls.reference_bits` (default 440; faixa 432–446 em `A4_MIN_HZ/A4_MAX_HZ`; a constante do padrão vive só em `dsp::note`), loop do engine aplica via `pipeline.set_a4_hz`, `SignalFrame.reference_hz`, `EngineStatus.reference_hz`, command `set_reference_pitch(hz)` (+ `allow-set-reference-pitch` em `build.rs`/capability).
+- **Frontend:** `utils/note.ts` (espelha `note.rs`), `utils/tuning.ts` (`nearestString`: corda mais próxima em cents; > 100 cents = fora do alcance → usa a nota cromática do backend), `data/tunings.ts` com presets, `composables/{useTunerSettings,usePrefersReducedMotion}.ts`, `components/{StrobeBand,TunerControls}.vue`; `TunerDisplay` agora recebe `tuning`, `referenceHz`, `view` e mostra a **corda alvo** do preset com cents relativos a ela.
+- **Decisões do usuário:** faixa 432–446; presets: 4/5/6 cordas padrão, Drop D, meio tom abaixo (4 e 5); strobe **alterna** com a agulha. Notação com **sustenidos** (D#1 G#1 C#2 F#2; A#0…), coerente com o passo 8. Todos os presets ficam ≥ 29.1 Hz (A#0), acima do `min_freq` de 28 Hz do YIN — teste garante; **Drop A / A0 (27.5 Hz) não é suportado**.
+- Cromático (`Cromático (qualquer nota)`) = sem cordas: usa nota/cents do backend, esconde a lista de cordas.
+- Introduzi **vitest** (`pnpm test`) para a lógica pura de frontend, pois os critérios (Drop D, A4) pedem verificação e não havia runner.
+- Estado de preset/visualização/A4 em `useTunerSettings` é **singleton de módulo** (volta ao default ao reiniciar o app; o passo 12 persiste). O A4 da UI é lido do backend (`get_engine_status`) ao montar.
+- Verificado: UI no mock (Chrome real): controles, strobe, stepper de A4 recalculando cents em relação à corda do preset, botão 440; app Tauri real: A4 +1 +1 → 442 sem erro.
+- Não verificado: troca de preset pelo `<select>` na UI (só unit tests da lógica), strobe parando em afinado, leitor de tela nos controles, comportamento com baixo real.

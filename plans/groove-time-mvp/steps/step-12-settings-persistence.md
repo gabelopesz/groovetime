@@ -40,3 +40,6 @@ Lembrar entre sessões o modo Ativo/Passivo, A4, preset de afinação, visualiza
 - [ ] Mexer no slider do gate continuamente gera no máximo ~2 gravações/s.
 - [ ] Testes unitários: roundtrip serde, `#[serde(default)]` com JSON parcial, validação de faixas ao carregar.
 - [ ] Nenhuma permissão nova de fs/plugin nas capabilities; clippy e `vue-tsc` limpos.
+
+
+> Nota do passo 11: o estado de preset/visualização/A4 está em `src/composables/useTunerSettings.ts` (refs de módulo: `presetId`, `view`, `referenceHz`); o gate em `DiagnosticsPanel.vue` (ref local). A persistência precisa restaurar o A4 e o gate no backend via `set_reference_pitch`/`set_gate_dbfs` ao iniciar.

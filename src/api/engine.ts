@@ -7,6 +7,7 @@ import {
   mockResetClips,
   mockSetBassMode,
   mockSetGate,
+  mockSetReference,
 } from "../mock/engine";
 import type { BassMode, DeviceInfo, EngineStatus } from "../types/engine";
 import { isTauri } from "./events";
@@ -41,6 +42,12 @@ export async function resetClipCount(): Promise<void> {
 export async function setGateDbfs(value: number): Promise<void> {
   if (!isTauri()) return mockSetGate(value);
   await call<void>("set_gate_dbfs", { value });
+}
+
+/** Referência A4 em Hz (432…446); fora da faixa o backend devolve `CommandError`. */
+export async function setReferencePitch(hz: number): Promise<void> {
+  if (!isTauri()) return mockSetReference(hz);
+  await call<void>("set_reference_pitch", { hz });
 }
 
 export async function getEngineStatus(): Promise<EngineStatus> {

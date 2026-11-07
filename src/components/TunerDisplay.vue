@@ -1,41 +1,69 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { DEFAULT_TUNING, IN_TUNE_CENTS, type TuningString } from "../data/tunings";
+import { CHROMATIC, DEFAULT_TUNING, IN_TUNE_CENTS, type Tuning } from "../data/tunings";
+import { usePrefersReducedMotion } from "../composables/usePrefersReducedMotion";
 import type { PitchInfo } from "../types/engine";
+import { DEFAULT_A4_HZ } from "../types/engine";
+import { nearestString } from "../utils/tuning";
+import StrobeBand from "./StrobeBand.vue";
 
 const props = withDefaults(
   defineProps<{
     pitch: PitchInfo | null;
     /** Nível abaixo do gate (a nota está escondida). */
     gated?: boolean;
-    strings?: TuningString[];
+    /** Referência A4 (Hz) usada para calcular a corda alvo do preset. */
+    referenceHz?: number;
+    /** Preset de afinação; sem cordas = cromático (nota/cents do backend). */
+    tuning?: Tuning;
+    view?: "needle" | "strobe";
     toleranceCents?: number;
   }>(),
-  { gated: false, strings: () => DEFAULT_TUNING.strings, toleranceCents: IN_TUNE_CENTS },
+  {
+    gated: false,
+    referenceHz: DEFAULT_A4_HZ,
+    tuning: () => DEFAULT_TUNING,
+    view: "needle",
+    toleranceCents: IN_TUNE_CENTS,
+  },
 );
+const { reduced } = usePrefersReducedMotion();
+const showStrobe = computed(() => props.view === "strobe" && !reduced.value);
+const strings = computed(() => (props.tuning ?? CHROMATIC).strings);
 
 const MINUS = "−";
 const hasSignal = computed(() => props.pitch !== null);
-const cents = computed(() => Math.max(-50, Math.min(50, props.pitch?.cents ?? 0)));
+
+// Com preset: corda mais próxima e cents em relação a ela; sem preset (ou longe demais): nota do backend.
+const reading = computed(() => {
+  const p = props.pitch;
+  if (!p) return null;
+  const target = nearestString(p.freq_hz, strings.value, props.referenceHz);
+  if (target) {
+    const str = strings.value[target.index]!;
+    return { note: str.note, octave: str.octave, cents: target.cents, activeIndex: target.index };
+  }
+  return { note: p.note, octave: p.octave, cents: p.cents, activeIndex: -1 };
+});
+const cents = computed(() => Math.max(-50, Math.min(50, reading.value?.cents ?? 0)));
+const realCents = computed(() => Math.max(-100, Math.min(100, reading.value?.cents ?? 0)));
 const inTune = computed(() => hasSignal.value && Math.abs(cents.value) <= props.toleranceCents);
 
-const noteLetter = computed(() => props.pitch?.note ?? "–");
-const octave = computed(() => (props.pitch ? String(props.pitch.octave) : ""));
+const noteLetter = computed(() => reading.value?.note ?? "–");
+const octave = computed(() => (reading.value ? String(reading.value.octave) : ""));
 const freq = computed(() => (props.pitch ? props.pitch.freq_hz.toFixed(2) : "—"));
 
 const signed = (v: number) => `${v >= 0 ? "+" : MINUS}${Math.abs(v).toFixed(0)}`;
 const status = computed(() => {
   if (!hasSignal.value) return props.gated ? "Abaixo do gate" : "Sem sinal";
   if (inTune.value) return "Afinado";
-  return `${cents.value > 0 ? "Agudo" : "Grave"} ${signed(cents.value)}¢`;
+  return `${realCents.value > 0 ? "Agudo" : "Grave"} ${signed(realCents.value)}¢`;
 });
 
 // A agulha só usa `transform` (camada de 100% da largura; 1 cent = 1% do trilho).
 const needleStyle = computed(() => ({ transform: `translateX(${cents.value.toFixed(2)}%)` }));
 
-const activeString = computed(() =>
-  props.strings.findIndex((s) => s.note === props.pitch?.note && s.octave === props.pitch?.octave),
-);
+const activeString = computed(() => reading.value?.activeIndex ?? -1);
 
 const ariaCents = computed(() => Math.round(cents.value));
 const CENT_MARKS = [-50, -25, 0, 25, 50];
@@ -49,7 +77,9 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
     </div>
     <div class="hz">{{ freq }} <small>Hz</small></div>
 
+    <StrobeBand v-if="showStrobe" class="strobe-view" :cents="reading ? reading.cents : null" :tolerance="toleranceCents" />
     <div
+      v-else
       class="gauge"
       role="meter"
       aria-label="Desvio de afinação em cents"
@@ -64,13 +94,13 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
         <div class="needle"></div>
       </div>
     </div>
-    <div class="gauge-scale" aria-hidden="true">
+    <div v-if="!showStrobe" class="gauge-scale" aria-hidden="true">
       <span>{{ MINUS }}50¢</span><span>0</span><span>+50¢</span>
     </div>
 
     <p class="status" role="status">{{ status }}</p>
 
-    <ul class="strings" aria-label="Cordas de referência">
+    <ul v-if="strings.length" class="strings" aria-label="Cordas de referência">
       <li v-for="(s, i) in strings" :key="s.note + s.octave" :class="{ active: i === activeString }">
         <span class="s-name">{{ s.name }}</span>
         <sub>{{ s.octave }}</sub>
@@ -168,6 +198,10 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
   box-shadow: 0 0 8px currentColor;
   color: var(--tuner-off);
   transition: background-color 120ms linear;
+}
+
+.strobe-view {
+  margin: 12px 0 2px;
 }
 
 .gauge-scale {

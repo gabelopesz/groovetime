@@ -66,6 +66,8 @@ pub struct SignalFrame {
     pub dc_offset: f32,
     /// Nivel abaixo do gate: a nota fica escondida.
     pub gated: bool,
+    /// Referencia A4 (Hz) usada para nota/cents.
+    pub reference_hz: f32,
     pub mode: BassMode,
     pub sample_rate: u32,
     pub dropped_samples: u64,
@@ -200,6 +202,7 @@ impl DspPipeline {
             noise_floor_dbfs: self.noise.value(),
             dc_offset: self.dc.percent(),
             gated,
+            reference_hz: self.a4_hz,
             mode,
             sample_rate: self.sample_rate,
             dropped_samples,
@@ -343,6 +346,25 @@ mod tests {
         }
         let v = last.expect("noise floor");
         assert!((v + 70.5).abs() < 2.0, "{v}");
+    }
+
+    #[test]
+    fn reference_pitch_changes_note_and_cents() {
+        // 54 Hz: A1 exato com A4 = 432; ~ -32 cents com A4 = 440.
+        let mut p = DspPipeline::new(RATE);
+        p.set_a4_hz(432.0);
+        feed_all(&mut p, &bass_tone(54.0, 0.5, 0.6));
+        let f = p.frame(BassMode::Passive, 0);
+        let a = f.pitch.expect("pitch");
+        assert_eq!((a.note, a.octave), ("A", 1));
+        assert!(a.cents.abs() < 2.0, "{}", a.cents);
+        assert_eq!(f.reference_hz, 432.0);
+
+        let mut p = DspPipeline::new(RATE);
+        feed_all(&mut p, &bass_tone(54.0, 0.5, 0.6));
+        let a = p.frame(BassMode::Passive, 0).pitch.expect("pitch");
+        assert_eq!((a.note, a.octave), ("A", 1));
+        assert!((a.cents + 31.8).abs() < 2.0, "{}", a.cents);
     }
 
     #[test]

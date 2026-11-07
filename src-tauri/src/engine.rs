@@ -40,6 +40,7 @@ pub struct EngineStatus {
     pub stream: Option<StreamInfo>,
     pub mode: BassMode,
     pub gate_dbfs: f32,
+    pub reference_hz: f32,
 }
 
 /// Handle de um engine em execucao. `stop` (ou drop) encerra a thread e o stream.
@@ -115,6 +116,8 @@ fn dsp_loop(
     let mut pipeline = DspPipeline::new(sample_rate);
     pipeline.set_gate_dbfs(controls.gate_dbfs());
     let mut applied_gate = controls.gate_dbfs();
+    pipeline.set_a4_hz(controls.reference_hz());
+    let mut applied_a4 = controls.reference_hz();
     let mut next_frame = Instant::now() + FRAME_INTERVAL;
 
     while !shutdown.load(Ordering::Acquire) {
@@ -127,6 +130,11 @@ fn dsp_loop(
         if gate != applied_gate {
             pipeline.set_gate_dbfs(gate);
             applied_gate = gate;
+        }
+        let a4 = controls.reference_hz();
+        if a4 != applied_a4 {
+            pipeline.set_a4_hz(a4);
+            applied_a4 = a4;
         }
         if controls.take_clip_reset() {
             pipeline.reset_clips();
@@ -178,6 +186,7 @@ impl AppState {
                 stream: None,
                 mode: BassMode::from_gain(controls.gain()),
                 gate_dbfs: controls.gate_dbfs(),
+                reference_hz: controls.reference_hz(),
             }),
             controls,
         }
@@ -187,6 +196,7 @@ impl AppState {
         let mut status = lock(&self.status).clone();
         status.mode = BassMode::from_gain(self.controls.gain());
         status.gate_dbfs = self.controls.gate_dbfs();
+        status.reference_hz = self.controls.reference_hz();
         status
     }
 
@@ -217,6 +227,7 @@ impl AppState {
                 stream: None,
                 mode: BassMode::from_gain(self.controls.gain()),
                 gate_dbfs: self.controls.gate_dbfs(),
+                reference_hz: self.controls.reference_hz(),
             },
         );
 
@@ -248,6 +259,7 @@ impl AppState {
                     stream: Some(handle.info.clone()),
                     mode: BassMode::from_gain(self.controls.gain()),
                     gate_dbfs: self.controls.gate_dbfs(),
+                    reference_hz: self.controls.reference_hz(),
                 };
                 *lock(&self.engine) = Some(handle);
                 status
@@ -260,6 +272,7 @@ impl AppState {
                     stream: None,
                     mode: BassMode::from_gain(self.controls.gain()),
                     gate_dbfs: self.controls.gate_dbfs(),
+                    reference_hz: self.controls.reference_hz(),
                 }
             }
         };

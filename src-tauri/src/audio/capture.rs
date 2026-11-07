@@ -22,6 +22,10 @@ pub const GAIN_ACTIVE: f32 = 0.251_188_64;
 pub const DEFAULT_GATE_DBFS: f32 = -50.0;
 pub const GATE_MIN_DBFS: f32 = -80.0;
 pub const GATE_MAX_DBFS: f32 = -20.0;
+/// Referencia A4 (Hz): faixa valida (o padrao vive em `dsp::note`).
+pub use crate::dsp::note::DEFAULT_A4_HZ;
+pub const A4_MIN_HZ: f32 = 432.0;
+pub const A4_MAX_HZ: f32 = 446.0;
 /// Duracao do ring buffer, em segundos de audio.
 const RING_SECONDS: f32 = 0.5;
 
@@ -31,6 +35,7 @@ pub struct SharedControls {
     gain_bits: AtomicU32,
     channel_index: AtomicUsize,
     gate_bits: AtomicU32,
+    reference_bits: AtomicU32,
     reset_clips: AtomicBool,
     /// Amostras descartadas por ring cheio.
     pub dropped_samples: AtomicU64,
@@ -44,6 +49,7 @@ impl SharedControls {
             gain_bits: AtomicU32::new(GAIN_PASSIVE.to_bits()),
             channel_index: AtomicUsize::new(target_channel),
             gate_bits: AtomicU32::new(DEFAULT_GATE_DBFS.to_bits()),
+            reference_bits: AtomicU32::new(DEFAULT_A4_HZ.to_bits()),
             reset_clips: AtomicBool::new(false),
             dropped_samples: AtomicU64::new(0),
             stream_error: AtomicBool::new(false),
@@ -78,6 +84,15 @@ impl SharedControls {
 
     pub fn set_gate_dbfs(&self, gate_dbfs: f32) {
         self.gate_bits.store(gate_dbfs.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Referencia A4 (Hz) lida pela thread DSP.
+    pub fn reference_hz(&self) -> f32 {
+        f32::from_bits(self.reference_bits.load(Ordering::Relaxed))
+    }
+
+    pub fn set_reference_hz(&self, hz: f32) {
+        self.reference_bits.store(hz.to_bits(), Ordering::Relaxed);
     }
 
     /// Pede o reset do contador de clips (consumido pela thread DSP).
@@ -300,6 +315,14 @@ mod tests {
         assert_eq!(drain(&mut c), vec![0.9]);
         process_interleaved(&[0.1f32], 0, 0, 1.0, &mut p, &dropped);
         assert!(drain(&mut c).is_empty());
+    }
+
+    #[test]
+    fn controls_reference_pitch() {
+        let c = SharedControls::new(0);
+        assert_eq!(c.reference_hz(), DEFAULT_A4_HZ);
+        c.set_reference_hz(432.0);
+        assert_eq!(c.reference_hz(), 432.0);
     }
 
     #[test]

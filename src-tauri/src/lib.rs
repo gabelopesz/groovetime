@@ -33,6 +33,7 @@ pub fn run() {
             commands::set_bass_mode,
             commands::reset_clip_count,
             commands::set_gate_dbfs,
+            commands::set_reference_pitch,
             commands::get_engine_status,
             commands::list_input_devices,
             commands::restart_engine,

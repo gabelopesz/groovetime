@@ -30,6 +30,8 @@ export interface SignalFrame {
   dc_offset: number;
   /** Nível abaixo do gate: a nota fica escondida. */
   gated: boolean;
+  /** Referência A4 (Hz) usada pelo backend para nota/cents. */
+  reference_hz: number;
   mode: BassMode;
   sample_rate: number;
   dropped_samples: number;
@@ -52,12 +54,18 @@ export interface EngineStatus {
   stream: StreamInfo | null;
   mode: BassMode;
   gate_dbfs: number;
+  reference_hz: number;
 }
 
 /** Faixa válida do gate (mesmos limites do backend). */
 export const GATE_MIN_DBFS = -80;
 export const GATE_MAX_DBFS = -20;
 export const DEFAULT_GATE_DBFS = -50;
+
+/** Faixa válida do A4 (mesmos limites do backend). */
+export const A4_MIN_HZ = 432;
+export const A4_MAX_HZ = 446;
+export const DEFAULT_A4_HZ = 440;
 
 export interface DeviceInfo {
   id: string;

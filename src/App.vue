@@ -5,10 +5,13 @@ import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import MeshBackground from "./components/MeshBackground.vue";
 import PeakMeter from "./components/PeakMeter.vue";
 import StatusFooter from "./components/StatusFooter.vue";
+import TunerControls from "./components/TunerControls.vue";
 import TunerDisplay from "./components/TunerDisplay.vue";
 import { useSignalFrame } from "./composables/useSignalFrame";
+import { useTunerSettings } from "./composables/useTunerSettings";
 
 const { frame } = useSignalFrame();
+const { tuning, view, referenceHz } = useTunerSettings();
 
 function onResetClips() {
   resetClipCount().catch((e) => console.error("reset_clip_count falhou", e));
@@ -20,7 +23,14 @@ function onResetClips() {
   <main class="app">
     <h1 class="sr-only">Groove Time</h1>
     <section class="panel hero">
-      <TunerDisplay :pitch="frame?.pitch ?? null" :gated="frame?.gated ?? false" />
+      <TunerDisplay
+        :pitch="frame?.pitch ?? null"
+        :gated="frame?.gated ?? false"
+        :reference-hz="frame?.reference_hz ?? referenceHz"
+        :tuning="tuning"
+        :view="view"
+      />
+      <TunerControls />
     </section>
     <section class="panel">
       <PeakMeter

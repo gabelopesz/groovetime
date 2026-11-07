@@ -4,6 +4,7 @@ fn main() {
             "set_bass_mode",
             "reset_clip_count",
             "set_gate_dbfs",
+            "set_reference_pitch",
             "get_engine_status",
             "list_input_devices",
             "restart_engine",

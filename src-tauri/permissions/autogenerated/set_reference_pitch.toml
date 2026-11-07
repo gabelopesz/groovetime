@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-reference-pitch"
+description = "Enables the set_reference_pitch command without any pre-configured scope."
+commands.allow = ["set_reference_pitch"]
+
+[[permission]]
+identifier = "deny-set-reference-pitch"
+description = "Denies the set_reference_pitch command without any pre-configured scope."
+commands.deny = ["set_reference_pitch"]
