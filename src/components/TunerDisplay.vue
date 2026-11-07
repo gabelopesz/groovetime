@@ -18,6 +18,8 @@ const props = withDefaults(
     tuning?: Tuning;
     view?: "needle" | "strobe";
     toleranceCents?: number;
+    /** Variante do modo mini: só nota, agulha/strobe e status. */
+    compact?: boolean;
   }>(),
   {
     gated: false,
@@ -25,6 +27,7 @@ const props = withDefaults(
     tuning: () => DEFAULT_TUNING,
     view: "needle",
     toleranceCents: IN_TUNE_CENTS,
+    compact: false,
   },
 );
 const { reduced } = usePrefersReducedMotion();
@@ -70,7 +73,7 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 </script>
 
 <template>
-  <section class="tuner" :class="{ 'in-tune': inTune, idle: !hasSignal }" aria-label="Afinador">
+  <section class="tuner" :class="{ 'in-tune': inTune, idle: !hasSignal, compact }" aria-label="Afinador">
     <div class="note" aria-live="off">
       <span class="letter">{{ noteLetter }}</span>
       <sub class="octave">{{ octave }}</sub>
@@ -268,6 +271,37 @@ const CENT_MARKS = [-50, -25, 0, 25, 50];
 .idle .letter,
 .idle .status {
   color: var(--tuner-muted);
+}
+
+/* Variante compacta (modo mini) */
+.tuner.compact {
+  padding: 4px 8px;
+}
+
+.compact .letter {
+  font-size: 56px;
+}
+
+.compact .octave {
+  font-size: 18px;
+}
+
+.compact .hz,
+.compact .gauge-scale,
+.compact .strings {
+  display: none;
+}
+
+.compact .gauge,
+.compact .strobe-view {
+  height: 20px;
+  margin: 6px 0 0;
+}
+
+.compact .status {
+  margin: 4px 0 0;
+  font-size: 13px;
+  min-height: 1.2em;
 }
 
 @media (prefers-reduced-motion: reduce) {

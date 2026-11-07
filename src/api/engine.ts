@@ -6,12 +6,14 @@ import {
   mockListDevices,
   mockResetClips,
   mockGetSettings,
+  mockGetWindowState,
+  mockSetMiniMode,
   mockSetBassMode,
   mockSetGate,
   mockSetReference,
   mockSetUiPrefs,
 } from "../mock/engine";
-import type { BassMode, DeviceInfo, EngineStatus, Settings, UiPrefs } from "../types/engine";
+import type { BassMode, DeviceInfo, EngineStatus, Settings, UiPrefs, WindowState } from "../types/engine";
 import { isTauri } from "./events";
 
 /** Erro de um command (o backend serializa `CommandError` como string). */
@@ -77,4 +79,15 @@ export async function getSettings(): Promise<Settings> {
 export async function setUiPrefs(prefs: UiPrefs): Promise<void> {
   if (!isTauri()) return mockSetUiPrefs(prefs);
   await call<void>("set_ui_prefs", { prefs });
+}
+
+export async function getWindowState(): Promise<WindowState> {
+  if (!isTauri()) return mockGetWindowState();
+  return call<WindowState>("get_window_state");
+}
+
+/** Entra/sai do modo mini (janela compacta, sempre no topo); o backend persiste a escolha. */
+export async function setMiniMode(enabled: boolean): Promise<WindowState> {
+  if (!isTauri()) return mockSetMiniMode(enabled);
+  return call<WindowState>("set_mini_mode", { enabled });
 }

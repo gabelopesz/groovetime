@@ -5,6 +5,7 @@ import type {
   BassMode,
   Settings,
   UiPrefs,
+  WindowState,
   DeviceInfo,
   EngineStatus,
   PitchInfo,
@@ -158,5 +159,16 @@ export function mockGetSettings(): Settings {
 export function mockSetUiPrefs(prefs: UiPrefs): void {
   if (prefs.tuning_preset != null) mockSettings.tuning_preset = prefs.tuning_preset;
   if (prefs.tuner_view != null) mockSettings.tuner_view = prefs.tuner_view;
-  if (prefs.mini_mode != null) mockSettings.mini_mode = prefs.mini_mode;
+}
+
+let mockMini = false;
+
+export function mockGetWindowState(): WindowState {
+  return { mini_mode: mockMini, wayland: new URLSearchParams(location.search).has("wayland") };
+}
+
+export function mockSetMiniMode(enabled: boolean): WindowState {
+  mockMini = enabled;
+  mockSettings.mini_mode = enabled;
+  return mockGetWindowState();
 }

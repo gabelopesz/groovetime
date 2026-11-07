@@ -6,6 +6,7 @@ pub mod dsp;
 pub mod engine;
 pub mod pipeline;
 pub mod settings;
+pub mod window;
 
 use std::sync::Arc;
 
@@ -32,6 +33,17 @@ pub fn run() {
             setup_state.controls.set_reference_hz(saved.reference_hz);
             setup_state.controls.set_gate_dbfs(saved.gate_dbfs);
 
+            if saved.mini_mode {
+                match app.get_webview_window("main") {
+                    Some(window) => {
+                        if let Err(e) = setup_state.apply_mini_mode(&window, true) {
+                            log::error!("nao foi possivel restaurar o modo mini: {e}");
+                        }
+                    }
+                    None => log::error!("janela principal nao encontrada para o modo mini"),
+                }
+            }
+
             // Enumerar devices ALSA pode demorar: nao bloquear a abertura da janela.
             // Preferencia de device inexistente cai para o automatico (sem sobrescrever o salvo).
             let handle = app.handle().clone();
@@ -47,6 +59,8 @@ pub fn run() {
             commands::set_gate_dbfs,
             commands::set_reference_pitch,
             commands::get_settings,
+            commands::get_window_state,
+            commands::set_mini_mode,
             commands::set_ui_prefs,
             commands::get_engine_status,
             commands::list_input_devices,

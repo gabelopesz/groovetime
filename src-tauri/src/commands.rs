@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::audio::{
     self, A4_MAX_HZ, A4_MIN_HZ, AudioError, DeviceInfo, GATE_MAX_DBFS, GATE_MIN_DBFS,
@@ -11,6 +11,7 @@ use crate::audio::{
 use crate::engine::{AppState, EngineState, EngineStatus};
 use crate::pipeline::BassMode;
 use crate::settings::{Settings, TunerView, is_valid_preset_id};
+use crate::window::WindowState;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CommandError {
@@ -85,12 +86,12 @@ pub fn get_settings(state: State<'_, Arc<AppState>>) -> Result<Settings, Command
     Ok(state.settings())
 }
 
-/// Preferencias so de UI; cada campo ausente (`null`) fica como esta.
+/// Preferencias so de UI (preset e visualizacao); campo ausente (`null`) fica como esta.
+/// O modo mini tem command proprio (`set_mini_mode`), pois mexe na janela.
 #[derive(Debug, Deserialize)]
 pub struct UiPrefs {
     pub tuning_preset: Option<String>,
     pub tuner_view: Option<TunerView>,
-    pub mini_mode: Option<bool>,
 }
 
 #[tauri::command]
@@ -107,11 +108,31 @@ pub fn set_ui_prefs(prefs: UiPrefs, state: State<'_, Arc<AppState>>) -> Result<(
         if let Some(view) = prefs.tuner_view {
             s.tuner_view = view;
         }
-        if let Some(mini) = prefs.mini_mode {
-            s.mini_mode = mini;
-        }
     });
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_window_state(state: State<'_, Arc<AppState>>) -> Result<WindowState, CommandError> {
+    Ok(state.window_state())
+}
+
+/// Entra/sai do modo mini (janela compacta, sempre no topo) e persiste a escolha.
+/// Feito no Rust: o frontend nao precisa de permissoes `core:window:*`.
+#[tauri::command]
+pub async fn set_mini_mode(
+    enabled: bool,
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<WindowState, CommandError> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| CommandError::Internal("janela principal nao encontrada".into()))?;
+    state
+        .apply_mini_mode(&window, enabled)
+        .map_err(|e| CommandError::Internal(e.to_string()))?;
+    state.persist(|s| s.mini_mode = enabled);
+    Ok(state.window_state())
 }
 
 #[tauri::command]

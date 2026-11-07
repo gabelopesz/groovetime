@@ -16,6 +16,7 @@ use crate::audio::device::device_name;
 use crate::audio::{self, AudioError, SharedControls, StreamInfo};
 use crate::pipeline::{BassMode, DspPipeline, SignalFrame};
 use crate::settings::{Settings, SettingsStore};
+use crate::window::SavedGeometry;
 
 pub const SIGNAL_FRAME_EVENT: &str = "signal-frame";
 pub const ENGINE_STATUS_EVENT: &str = "engine-status";
@@ -178,6 +179,9 @@ pub struct AppState {
     status: Mutex<EngineStatus>,
     /// Preferencias persistidas (definidas no `setup`, quando o caminho de config e conhecido).
     settings: OnceLock<Arc<SettingsStore>>,
+    /// Modo mini ativo e geometria normal a restaurar ao sair.
+    pub mini_mode: AtomicBool,
+    pub saved_window: Mutex<Option<SavedGeometry>>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -199,6 +203,23 @@ impl AppState {
             }),
             controls,
             settings: OnceLock::new(),
+            mini_mode: AtomicBool::new(false),
+            saved_window: Mutex::new(None),
+        }
+    }
+
+    /// Aplica o modo mini na janela e registra o estado (nao persiste).
+    pub fn apply_mini_mode(&self, window: &tauri::WebviewWindow, enabled: bool) -> tauri::Result<()> {
+        let mut saved = lock(&self.saved_window);
+        crate::window::apply_mini(window, enabled, &mut saved)?;
+        self.mini_mode.store(enabled, Ordering::Relaxed);
+        Ok(())
+    }
+
+    pub fn window_state(&self) -> crate::window::WindowState {
+        crate::window::WindowState {
+            mini_mode: self.mini_mode.load(Ordering::Relaxed),
+            wayland: crate::window::wayland_from_env(),
         }
     }
 

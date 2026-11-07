@@ -50,3 +50,6 @@ Revisar e travar a superfície de segurança (capabilities, CSP, commands), gera
 - [ ] Capabilities e CSP revisadas e documentadas; nenhum plugin/permissão não usado.
 - [ ] Checklist de validação com hardware acima preenchida (resultados anotados neste arquivo ou no README do projeto).
 - [ ] README do projeto com instruções de build/instalação/configuração de áudio.
+
+
+> Nota do passo 13: `README.md` já existe na raiz (dev/testes, modo mini/Wayland, preferências) — complementar com empacotamento/instalação. Há um workaround de resize (reaplicar `set_size` após 150 ms em `window.rs`) validado só em X11. Capabilities atuais: `core:event:default` + `allow-*` dos commands próprios (sem fs/window/plugin).

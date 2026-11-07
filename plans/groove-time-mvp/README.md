@@ -38,7 +38,7 @@ Construir o "Groove Time", app desktop Linux (Tauri v2 + Rust + Vue 3/TS) que ca
 | 10 | [Métricas extras: RMS, contador de clips, noise floor/DC, gate](steps/step-10-signal-metrics.md) | done | 9 |
 | 11 | [Afinador avançado: A4 ajustável, presets, strobe](steps/step-11-tuner-extras.md) | done | 9 |
 | 12 | [Persistência de preferências (JSON em ~/.config)](steps/step-12-settings-persistence.md) | done | 10, 11 |
-| 13 | [Modo mini / sempre no topo](steps/step-13-mini-mode.md) | pending | 12 |
+| 13 | [Modo mini / sempre no topo](steps/step-13-mini-mode.md) | done | 12 |
 | 14 | [Hardening de segurança, empacotamento Linux e validação na Q-24](steps/step-14-security-packaging-validation.md) | pending | 10, 11, 12, 13 |
 
 > Status values: `pending`, `in-progress`, `done`, `blocked`.

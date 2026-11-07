@@ -16,8 +16,10 @@ const props = withDefaults(
     clippedRecently: boolean;
     rmsDbfs?: number;
     clipCount?: number;
+    /** Variante do modo mini: só LED PEAK e contador de clips. */
+    compact?: boolean;
   }>(),
-  { rmsDbfs: -120, clipCount: 0 },
+  { rmsDbfs: -120, clipCount: 0, compact: false },
 );
 
 const emit = defineEmits<{ resetClips: [] }>();
@@ -77,7 +79,7 @@ const ticks = METER_TICKS.map((db) => ({
 </script>
 
 <template>
-  <div class="peak-meter" :class="{ clip: ledOn }">
+  <div class="peak-meter" :class="{ clip: ledOn, compact }">
     <div class="vignette" :class="{ on: ledOn }" aria-hidden="true"></div>
 
     <div class="row">
@@ -343,6 +345,21 @@ const ticks = METER_TICKS.map((db) => ({
 .readout small {
   font-size: 10px;
   opacity: 0.6;
+}
+
+/* Variante compacta (modo mini): só LED + clips */
+.compact {
+  padding: 4px;
+}
+
+.compact .meter,
+.compact .scale,
+.compact .readout {
+  display: none;
+}
+
+.compact .row {
+  justify-content: center;
 }
 
 /* Vinheta vermelha sutil na janela inteira quando há clip. */

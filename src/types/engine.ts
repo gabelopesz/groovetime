@@ -88,9 +88,15 @@ export interface Settings {
   mini_mode: boolean;
 }
 
-/** Preferências só de UI; campos `null`/ausentes ficam como estão. */
+/** Preferências só de UI (preset e visualização); campos `null`/ausentes ficam como estão. */
 export interface UiPrefs {
   tuning_preset?: string | null;
   tuner_view?: TunerView | null;
-  mini_mode?: boolean | null;
+}
+
+/** Estado da janela (modo mini e sessão Wayland). */
+export interface WindowState {
+  mini_mode: boolean;
+  /** Em Wayland o compositor pode ignorar "sempre no topo". */
+  wayland: boolean;
 }

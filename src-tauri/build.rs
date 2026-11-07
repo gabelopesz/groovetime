@@ -7,6 +7,8 @@ fn main() {
             "set_reference_pitch",
             "get_engine_status",
             "get_settings",
+            "get_window_state",
+            "set_mini_mode",
             "set_ui_prefs",
             "list_input_devices",
             "restart_engine",

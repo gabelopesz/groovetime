@@ -1,17 +1,34 @@
 <script setup lang="ts">
 import { resetClipCount } from "./api/engine";
+import { onMounted, onUnmounted } from "vue";
 import BassModeToggle from "./components/BassModeToggle.vue";
 import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import MeshBackground from "./components/MeshBackground.vue";
+import MiniView from "./components/MiniView.vue";
 import PeakMeter from "./components/PeakMeter.vue";
 import StatusFooter from "./components/StatusFooter.vue";
 import TunerControls from "./components/TunerControls.vue";
 import TunerDisplay from "./components/TunerDisplay.vue";
+import { useMiniMode } from "./composables/useMiniMode";
 import { useSignalFrame } from "./composables/useSignalFrame";
 import { useTunerSettings } from "./composables/useTunerSettings";
 
 const { frame } = useSignalFrame();
 const { tuning, view, referenceHz } = useTunerSettings();
+const { mini, wayland, error: miniError, load: loadMini, set: setMini, toggle: toggleMini } = useMiniMode();
+
+// Ctrl+M alterna o modo mini (com a janela em foco).
+function onKeydown(e: KeyboardEvent) {
+  if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "m") {
+    e.preventDefault();
+    void toggleMini();
+  }
+}
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  void loadMini();
+});
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 function onResetClips() {
   resetClipCount().catch((e) => console.error("reset_clip_count falhou", e));
@@ -20,7 +37,14 @@ function onResetClips() {
 
 <template>
   <MeshBackground />
-  <main class="app">
+  <MiniView
+    v-if="mini"
+    :frame="frame"
+    :wayland="wayland"
+    @exit="setMini(false)"
+    @reset-clips="onResetClips"
+  />
+  <main v-else class="app">
     <h1 class="sr-only">Groove Time</h1>
     <section class="panel hero">
       <TunerDisplay
@@ -49,6 +73,15 @@ function onResetClips() {
     <section class="panel">
       <DiagnosticsPanel :frame="frame" />
     </section>
+    <div class="mini-row">
+      <button type="button" class="mini-btn" @click="setMini(true)">
+        Modo mini <kbd>Ctrl+M</kbd>
+      </button>
+      <p v-if="wayland" class="warn">
+        Sessão Wayland: o compositor pode ignorar “sempre no topo”.
+      </p>
+      <p v-if="miniError" class="warn" role="alert">{{ miniError }}</p>
+    </div>
     <StatusFooter />
   </main>
 </template>
@@ -77,6 +110,47 @@ function onResetClips() {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.mini-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel-bg);
+  color: var(--text);
+  font: 600 13px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.mini-btn:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.mini-btn kbd {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  font: 11px var(--font-mono);
+  color: var(--text-muted);
+}
+
+.warn {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--panel-bg);
+  font: 12px/1.3 var(--font-sans);
+  color: var(--tuner-off);
+  text-align: center;
 }
 
 .sr-only {
