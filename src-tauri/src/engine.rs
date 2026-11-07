@@ -2,7 +2,7 @@
 //! no maximo um `SignalFrame` a cada ~16 ms.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter};
 use crate::audio::device::device_name;
 use crate::audio::{self, AudioError, SharedControls, StreamInfo};
 use crate::pipeline::{BassMode, DspPipeline, SignalFrame};
+use crate::settings::{Settings, SettingsStore};
 
 pub const SIGNAL_FRAME_EVENT: &str = "signal-frame";
 pub const ENGINE_STATUS_EVENT: &str = "engine-status";
@@ -54,14 +55,20 @@ pub struct EngineHandle {
 
 impl EngineHandle {
     /// Inicia captura + thread DSP. `on_frame` roda na thread DSP; `on_error`
-    /// roda (uma vez) se o stream falhar.
+    /// roda (uma vez) se o stream falhar. Com `strict`, uma preferencia de device
+    /// inexistente e erro; sem `strict`, cai para o device automatico.
     pub fn start(
         controls: Arc<SharedControls>,
         device_pref: Option<&str>,
+        strict: bool,
         on_frame: impl FnMut(&SignalFrame) + Send + 'static,
         on_error: impl FnOnce(String) + Send + 'static,
     ) -> Result<Self, AudioError> {
-        let device = audio::find_device(device_pref)?;
+        let device = if strict {
+            audio::find_device(device_pref)?
+        } else {
+            audio::find_device_or_default(device_pref)?
+        };
         let name = device_name(&device);
         let config = audio::choose_config(&device, 0)?;
         let capture = audio::start_capture(&device, config, Arc::clone(&controls))?;
@@ -169,6 +176,8 @@ pub struct AppState {
     pub controls: Arc<SharedControls>,
     engine: Mutex<Option<EngineHandle>>,
     status: Mutex<EngineStatus>,
+    /// Preferencias persistidas (definidas no `setup`, quando o caminho de config e conhecido).
+    settings: OnceLock<Arc<SettingsStore>>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -189,6 +198,33 @@ impl AppState {
                 reference_hz: controls.reference_hz(),
             }),
             controls,
+            settings: OnceLock::new(),
+        }
+    }
+
+    /// Liga o armazenamento de preferencias (so a primeira chamada vale).
+    pub fn init_settings(&self, store: Arc<SettingsStore>) {
+        if self.settings.set(store).is_err() {
+            log::warn!("settings ja inicializado");
+        }
+    }
+
+    /// Preferencias atuais (defaults se o armazenamento ainda nao foi iniciado).
+    pub fn settings(&self) -> Settings {
+        self.settings.get().map(|s| s.get()).unwrap_or_default()
+    }
+
+    /// Altera e agenda a gravacao das preferencias (no-op sem armazenamento).
+    pub fn persist(&self, change: impl FnOnce(&mut Settings)) {
+        if let Some(store) = self.settings.get() {
+            store.update(change);
+        }
+    }
+
+    /// Grava preferencias pendentes imediatamente (encerramento do app).
+    pub fn flush_settings(&self) {
+        if let Some(store) = self.settings.get() {
+            store.flush();
         }
     }
 
@@ -217,7 +253,8 @@ impl AppState {
     }
 
     /// (Re)inicia o engine. Falhas de audio viram status de erro, nunca panic.
-    pub fn start(self: &Arc<Self>, app: &AppHandle, device_pref: Option<&str>) -> EngineStatus {
+    /// `strict`: preferencia de device inexistente vira erro (reinicio pedido pelo usuario).
+    pub fn start(self: &Arc<Self>, app: &AppHandle, device_pref: Option<&str>, strict: bool) -> EngineStatus {
         self.stop();
         self.set_status(
             app,
@@ -237,6 +274,7 @@ impl AppState {
         let result = EngineHandle::start(
             Arc::clone(&self.controls),
             device_pref,
+            strict,
             move |frame| {
                 if let Err(e) = frame_app.emit(SIGNAL_FRAME_EVENT, frame) {
                     log::debug!("falha ao emitir signal-frame: {e}");

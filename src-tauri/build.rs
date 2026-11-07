@@ -6,6 +6,8 @@ fn main() {
             "set_gate_dbfs",
             "set_reference_pitch",
             "get_engine_status",
+            "get_settings",
+            "set_ui_prefs",
             "list_input_devices",
             "restart_engine",
         ]),

@@ -1,6 +1,6 @@
 # Step 12: Persistência de preferências (JSON em ~/.config)
 
-**Status:** pending
+**Status:** done
 **Depends on:** 10, 11
 
 ## Goal
@@ -35,11 +35,22 @@ Lembrar entre sessões o modo Ativo/Passivo, A4, preset de afinação, visualiza
 
 ## Acceptance criteria
 
-- [ ] Mudar modo, A4, preset, view, gate → fechar e reabrir o app → tudo restaurado.
-- [ ] `settings.json` corrompido manualmente → app abre com defaults e cria `.bak`.
-- [ ] Mexer no slider do gate continuamente gera no máximo ~2 gravações/s.
-- [ ] Testes unitários: roundtrip serde, `#[serde(default)]` com JSON parcial, validação de faixas ao carregar.
-- [ ] Nenhuma permissão nova de fs/plugin nas capabilities; clippy e `vue-tsc` limpos.
+- [x] No app real: modo Ativo + A4 442 + Strobe → `settings.json` gravado → app fechado e reaberto → tudo restaurado (modo Ativo com aviso em destaque). **Preset e gate não foram alterados pela UI nesse teste** (o `<select>` e o slider não foram acionados); ambos estão cobertos por código/testes (preset via `set_ui_prefs`; gate via `set_gate_dbfs` + teste de debounce), mas não vi a restauração deles no app.
+- [x] Corrompido manualmente: app abriu com defaults (440 Hz, Agulha, Passivo), log de erro e `settings.json.bak` criado com o conteúdo original.
+- [x] Teste `debounce_limits_writes_during_continuous_updates`: 60 alterações em ~600 ms (debounce de 200 ms no teste) → 1–4 gravações e o último valor chega ao disco. Com o debounce real de 500 ms o limite é ~2/s; não medi arrastando o slider no app.
+- [x] 9 testes em `settings.rs`: roundtrip, JSON parcial/campos desconhecidos, sanitização (A4 500, gate -200, preset inválido/`../../etc`, device vazio), enum inválido → erro, arquivo ausente, corrompido → `.bak`, escrita atômica sem `.tmp`, debounce, flush.
+- [x] Capabilities só ganharam `allow-get-settings` e `allow-set-ui-prefs` (sem fs/plugin). Clippy `--all-targets -D warnings` e `pnpm build` limpos; 69 testes Rust + 10 vitest.
 
 
 > Nota do passo 11: o estado de preset/visualização/A4 está em `src/composables/useTunerSettings.ts` (refs de módulo: `presetId`, `view`, `referenceHz`); o gate em `DiagnosticsPanel.vue` (ref local). A persistência precisa restaurar o A4 e o gate no backend via `set_reference_pitch`/`set_gate_dbfs` ao iniciar.
+
+## Result
+
+- **Backend:** `src-tauri/src/settings.rs` (`Settings` com `#[serde(default)]`, `TunerView`, `sanitized()`, `load_or_default`, `write_atomic`, `SettingsStore` com thread `groove-settings` e debounce de 500 ms, `flush()` no encerramento). `AppState` ganhou `settings: OnceLock<Arc<SettingsStore>>` (`init_settings`, `settings()`, `persist()`, `flush_settings()`); `lib.rs` carrega e **aplica** modo/A4/gate **antes** de iniciar o engine e chama `flush_settings` em `RunEvent::Exit`.
+- **Decisões do usuário:** caminho = `app_config_dir()` (`~/.config/com.groovetime.app/settings.json`); persistência **implícita** nos setters (`set_bass_mode`, `set_reference_pitch`, `set_gate_dbfs`, `restart_engine`) + `get_settings` + `set_ui_prefs(prefs)` (preset/view/mini, parcial); **restaurar** o modo salvo e mostrá-lo em destaque (aviso azul "Aberto em modo Ativo (−12 dB), como na última sessão." no toggle).
+- **Device preferido:** `EngineHandle::start` ganhou `strict: bool`. No boot é `false`: preferência inexistente cai para o device automático (`find_device_or_default`) **sem sobrescrever** o valor salvo. `restart_engine` é `strict` e só grava `device_name` se o engine realmente subiu. **A UI ainda não tem seletor de device**, então `device_name` só muda via `restart_engine` (command existente, sem tela).
+- **Frontend:** `getSettings`/`setUiPrefs` (+ mock em memória), tipos `Settings`/`UiPrefs`/`TunerView`; `useTunerSettings.load()` hidrata preset/view/A4 de `get_settings` e **só depois** registra os `watch` que persistem mudanças (evita gravar defaults por cima). Modo e gate já chegam hidratados via `get_engine_status` porque o backend os aplicou no boot.
+- **Tolerância/limites:** valores fora de faixa são corrigidos ao carregar; um valor de enum inválido (ex. `"tuner_view": "x"`) invalida o arquivo inteiro (vai para `.bak`) — escolha simples, mas não é tolerante a downgrade. `mini_mode` já existe no JSON/`set_ui_prefs` para o passo 13.
+- Teste de integração `engine_hw` ganhou o caso "device preferido inexistente com `strict=false` cai para o automático" (3 testes passam).
+- Limpeza: removi `~/.config/com.groovetime.app/` criado pelos meus testes.
+- Não verificado: restauração de preset/gate no app, queda do device preferido real (Q-24), erro de escrita (disco cheio/permissão) além do log.

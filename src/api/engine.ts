@@ -5,11 +5,13 @@ import {
   mockGetStatus,
   mockListDevices,
   mockResetClips,
+  mockGetSettings,
   mockSetBassMode,
   mockSetGate,
   mockSetReference,
+  mockSetUiPrefs,
 } from "../mock/engine";
-import type { BassMode, DeviceInfo, EngineStatus } from "../types/engine";
+import type { BassMode, DeviceInfo, EngineStatus, Settings, UiPrefs } from "../types/engine";
 import { isTauri } from "./events";
 
 /** Erro de um command (o backend serializa `CommandError` como string). */
@@ -63,4 +65,16 @@ export async function listInputDevices(): Promise<DeviceInfo[]> {
 export async function restartEngine(device?: string): Promise<EngineStatus> {
   if (!isTauri()) return mockGetStatus();
   return call<EngineStatus>("restart_engine", { device: device ?? null });
+}
+
+/** Preferências salvas (para hidratar preset, visualização etc. ao iniciar). */
+export async function getSettings(): Promise<Settings> {
+  if (!isTauri()) return mockGetSettings();
+  return call<Settings>("get_settings");
+}
+
+/** Grava preferências só de UI (preset, visualização, modo mini). */
+export async function setUiPrefs(prefs: UiPrefs): Promise<void> {
+  if (!isTauri()) return mockSetUiPrefs(prefs);
+  await call<void>("set_ui_prefs", { prefs });
 }

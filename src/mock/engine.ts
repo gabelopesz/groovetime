@@ -3,6 +3,8 @@
 import { freqToNote } from "../utils/note";
 import type {
   BassMode,
+  Settings,
+  UiPrefs,
   DeviceInfo,
   EngineStatus,
   PitchInfo,
@@ -135,4 +137,26 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
     });
   }, 16);
   return () => clearInterval(timer);
+}
+
+// Preferências simuladas (em memória; no navegador não persistem entre recargas).
+const mockSettings: Settings = {
+  version: 1,
+  bass_mode: "passive",
+  reference_hz: 440,
+  tuning_preset: "bass-4",
+  tuner_view: "needle",
+  gate_dbfs: -50,
+  device_name: null,
+  mini_mode: false,
+};
+
+export function mockGetSettings(): Settings {
+  return { ...mockSettings, bass_mode: mode, reference_hz: reference, gate_dbfs: gate };
+}
+
+export function mockSetUiPrefs(prefs: UiPrefs): void {
+  if (prefs.tuning_preset != null) mockSettings.tuning_preset = prefs.tuning_preset;
+  if (prefs.tuner_view != null) mockSettings.tuner_view = prefs.tuner_view;
+  if (prefs.mini_mode != null) mockSettings.mini_mode = prefs.mini_mode;
 }

@@ -73,3 +73,24 @@ export interface DeviceInfo {
   max_channels: number;
   sample_rate_ranges: [number, number][];
 }
+
+export type TunerView = "needle" | "strobe";
+
+/** Preferências persistidas (espelha src-tauri/src/settings.rs). */
+export interface Settings {
+  version: number;
+  bass_mode: BassMode;
+  reference_hz: number;
+  tuning_preset: string;
+  tuner_view: TunerView;
+  gate_dbfs: number;
+  device_name: string | null;
+  mini_mode: boolean;
+}
+
+/** Preferências só de UI; campos `null`/ausentes ficam como estão. */
+export interface UiPrefs {
+  tuning_preset?: string | null;
+  tuner_view?: TunerView | null;
+  mini_mode?: boolean | null;
+}

@@ -2,14 +2,15 @@
 
 use std::sync::Arc;
 
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use tauri::{AppHandle, State};
 
 use crate::audio::{
     self, A4_MAX_HZ, A4_MIN_HZ, AudioError, DeviceInfo, GATE_MAX_DBFS, GATE_MIN_DBFS,
 };
-use crate::engine::{AppState, EngineStatus};
+use crate::engine::{AppState, EngineState, EngineStatus};
 use crate::pipeline::BassMode;
+use crate::settings::{Settings, TunerView, is_valid_preset_id};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CommandError {
@@ -30,6 +31,7 @@ impl Serialize for CommandError {
 #[tauri::command]
 pub fn set_bass_mode(mode: BassMode, state: State<'_, Arc<AppState>>) -> Result<(), CommandError> {
     state.controls.set_active_mode(mode == BassMode::Active);
+    state.persist(|s| s.bass_mode = mode);
     Ok(())
 }
 
@@ -44,6 +46,7 @@ pub fn reset_clip_count(state: State<'_, Arc<AppState>>) -> Result<(), CommandEr
 pub fn set_gate_dbfs(value: f32, state: State<'_, Arc<AppState>>) -> Result<(), CommandError> {
     validate_gate(value)?;
     state.controls.set_gate_dbfs(value);
+    state.persist(|s| s.gate_dbfs = value);
     Ok(())
 }
 
@@ -52,6 +55,7 @@ pub fn set_gate_dbfs(value: f32, state: State<'_, Arc<AppState>>) -> Result<(), 
 pub fn set_reference_pitch(hz: f32, state: State<'_, Arc<AppState>>) -> Result<(), CommandError> {
     validate_reference(hz)?;
     state.controls.set_reference_hz(hz);
+    state.persist(|s| s.reference_hz = hz);
     Ok(())
 }
 
@@ -75,6 +79,41 @@ fn validate_gate(value: f32) -> Result<(), CommandError> {
     }
 }
 
+/// Preferencias salvas (para o frontend hidratar preset, visualizacao etc.).
+#[tauri::command]
+pub fn get_settings(state: State<'_, Arc<AppState>>) -> Result<Settings, CommandError> {
+    Ok(state.settings())
+}
+
+/// Preferencias so de UI; cada campo ausente (`null`) fica como esta.
+#[derive(Debug, Deserialize)]
+pub struct UiPrefs {
+    pub tuning_preset: Option<String>,
+    pub tuner_view: Option<TunerView>,
+    pub mini_mode: Option<bool>,
+}
+
+#[tauri::command]
+pub fn set_ui_prefs(prefs: UiPrefs, state: State<'_, Arc<AppState>>) -> Result<(), CommandError> {
+    if let Some(preset) = prefs.tuning_preset.as_deref()
+        && !is_valid_preset_id(preset)
+    {
+        return Err(CommandError::InvalidArgument("id de afinacao invalido".into()));
+    }
+    state.persist(|s| {
+        if let Some(preset) = prefs.tuning_preset {
+            s.tuning_preset = preset;
+        }
+        if let Some(view) = prefs.tuner_view {
+            s.tuner_view = view;
+        }
+        if let Some(mini) = prefs.mini_mode {
+            s.mini_mode = mini;
+        }
+    });
+    Ok(())
+}
+
 #[tauri::command]
 pub fn get_engine_status(state: State<'_, Arc<AppState>>) -> Result<EngineStatus, CommandError> {
     Ok(state.status())
@@ -95,9 +134,16 @@ pub async fn restart_engine(
     state: State<'_, Arc<AppState>>,
 ) -> Result<EngineStatus, CommandError> {
     let state = Arc::clone(&state);
-    tauri::async_runtime::spawn_blocking(move || state.start(&app, device.as_deref()))
-        .await
-        .map_err(|e| CommandError::Internal(e.to_string()))
+    tauri::async_runtime::spawn_blocking(move || {
+        let status = state.start(&app, device.as_deref(), true);
+        // So lembra a preferencia se o device realmente abriu.
+        if status.state == EngineState::Running {
+            state.persist(|s| s.device_name = device.clone());
+        }
+        status
+    })
+    .await
+    .map_err(|e| CommandError::Internal(e.to_string()))
 }
 
 #[cfg(test)]

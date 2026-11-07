@@ -37,3 +37,6 @@ Adicionar um modo compacto que encolhe a janela para mostrar só a nota, os cent
 - [ ] Capabilities não ganharam permissões `core:window:*` além das que já existiam.
 - [ ] Modo mini persiste entre reinícios.
 - [ ] Clippy e `vue-tsc` limpos.
+
+
+> Nota do passo 12: `mini_mode` já é persistido (`Settings.mini_mode`, `set_ui_prefs({ mini_mode })`, `get_settings`); falta só a UI/janela. O estado de tamanho/posição da janela não é salvo (fora de escopo do passo 12).

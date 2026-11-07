@@ -10,6 +10,8 @@
     "allow-set-gate-dbfs",
     "allow-set-reference-pitch",
     "allow-get-engine-status",
+    "allow-get-settings",
+    "allow-set-ui-prefs",
     "allow-list-input-devices",
     "allow-restart-engine"
   ]

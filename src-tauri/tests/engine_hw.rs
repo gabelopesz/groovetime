@@ -19,6 +19,7 @@ fn emits_about_60_frames_per_second_and_shuts_down() {
     let mut engine = EngineHandle::start(
         Arc::clone(&controls),
         None,
+        false,
         move |f| {
             c.fetch_add(1, Ordering::Relaxed);
             *l.lock().unwrap() = Some(f.clone());
@@ -49,6 +50,15 @@ fn emits_about_60_frames_per_second_and_shuts_down() {
 #[ignore = "exige o host ALSA"]
 fn missing_device_is_an_error_not_a_panic() {
     let controls = Arc::new(SharedControls::new(0));
-    let result = EngineHandle::start(controls, Some("zzz-inexistente"), |_| {}, |_| {});
+    let result = EngineHandle::start(controls, Some("zzz-inexistente"), true, |_| {}, |_| {});
     assert!(result.is_err());
+}
+
+#[test]
+#[ignore = "exige o host ALSA e um device de captura"]
+fn missing_preferred_device_falls_back_when_not_strict() {
+    let controls = Arc::new(SharedControls::new(0));
+    let mut engine =
+        EngineHandle::start(controls, Some("zzz-inexistente"), false, |_| {}, |_| {}).expect("fallback");
+    engine.stop();
 }

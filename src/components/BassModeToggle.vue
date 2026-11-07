@@ -8,7 +8,7 @@ const props = defineProps<{
   confirmedMode?: BassMode | null;
 }>();
 
-const { mode, error, toggle } = useBassMode();
+const { mode, error, restoredActive, toggle } = useBassMode();
 
 const active = computed(() => mode.value === "active");
 /** Pedido enviado, mas ainda não confirmado pelo backend. */
@@ -31,6 +31,9 @@ const pending = computed(() => !!props.confirmedMode && props.confirmedMode !== 
       <span class="track" aria-hidden="true"><span class="thumb"></span></span>
       <span class="side" :class="{ current: active }">Ativo (−12 dB)</span>
     </button>
+    <p v-if="restoredActive" class="restored" role="status">
+      Aberto em modo Ativo (−12 dB), como na última sessão.
+    </p>
     <p id="mode-help" class="help">
       Ativo atenua o sinal em 12 dB para pré-amps ativos não estourarem.
     </p>
@@ -107,6 +110,17 @@ const pending = computed(() => !!props.confirmedMode && props.confirmedMode !== 
   margin: 8px 0 0;
   font: 12px/1.3 var(--font-sans);
   color: var(--text-muted);
+}
+
+.restored {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  display: inline-block;
+  border: 1px solid #3d8bff;
+  border-radius: 8px;
+  background: rgb(61 139 255 / 0.18);
+  font: 600 12px/1.3 var(--font-sans);
+  color: var(--text);
 }
 
 .error {

@@ -190,6 +190,18 @@ pub fn find_device(preference: Option<&str>) -> Result<Device, AudioError> {
     host.default_input_device().ok_or(AudioError::NoInputDevice)
 }
 
+/// Como `find_device`, mas se a preferencia nao for encontrada (ex.: placa desconectada)
+/// cai para o device automatico, sem tratar como erro.
+pub fn find_device_or_default(preference: Option<&str>) -> Result<Device, AudioError> {
+    match find_device(preference) {
+        Err(AudioError::DeviceNotFound(p)) => {
+            log::warn!("device preferido \"{p}\" nao encontrado; usando o automatico");
+            find_device(None)
+        }
+        other => other,
+    }
+}
+
 /// Escolhe a configuracao de captura do device (alvo 192 kHz, com fallback).
 pub fn choose_config(device: &Device, target_channel: u16) -> Result<CaptureConfig, AudioError> {
     let ranges: Vec<_> = device.supported_input_configs()?.collect();

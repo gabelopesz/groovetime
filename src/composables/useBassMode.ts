@@ -6,10 +6,13 @@ import type { BassMode } from "../types/engine";
 export function useBassMode() {
   const mode = ref<BassMode>("passive");
   const error = ref<string | null>(null);
+  /** `true` se o app abriu em modo Ativo (restaurado das preferências). */
+  const restoredActive = ref(false);
 
   onMounted(async () => {
     try {
       mode.value = (await getEngineStatus()).mode;
+      restoredActive.value = mode.value === "active";
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
     }
@@ -20,6 +23,7 @@ export function useBassMode() {
     if (next === previous) return;
     mode.value = next;
     error.value = null;
+    restoredActive.value = false;
     try {
       await setBassMode(next);
     } catch (e) {
@@ -30,5 +34,5 @@ export function useBassMode() {
 
   const toggle = () => set(mode.value === "active" ? "passive" : "active");
 
-  return { mode, error, set, toggle };
+  return { mode, error, restoredActive, set, toggle };
 }
