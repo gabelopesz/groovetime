@@ -1,6 +1,6 @@
 # Step 3: Biblioteca DSP pura: pico dBFS, decimação e YIN
 
-**Status:** pending
+**Status:** done
 **Depends on:** 1
 
 ## Goal
@@ -38,8 +38,20 @@ Implementar, sem nenhuma dependência de áudio/Tauri, os algoritmos de DSP com 
 
 ## Acceptance criteria
 
-- [ ] `cargo test dsp` passa com todos os casos de nota listados (erro < 1 cent em senoide; < 3 cents em sinal harmônico com fundamental atenuado).
-- [ ] Teste de silêncio/ruído baixo retorna `None` em YIN e ~-120 dBFS no peak.
-- [ ] Teste de pico: senoide amplitude 0.708 (~-3 dBFS) dispara `over_threshold`; 0.5 (~-6 dBFS) não.
-- [ ] `Yin::detect`, `Decimator::process` e `PeakMeter::process` não alocam (buffers criados no construtor; revisar código).
-- [ ] Clippy limpo, sem `unwrap`/`expect` fora de testes.
+- [x] `cargo test dsp` passa com todos os casos de nota listados (erro < 1 cent em senoide; < 3 cents em sinal harmônico com fundamental atenuado).
+- [x] Teste de silêncio/ruído baixo retorna `None` em YIN e ~-120 dBFS no peak.
+- [x] Teste de pico: senoide amplitude 0.708 (~-3 dBFS) dispara `over_threshold`; 0.5 (~-6 dBFS) não.
+- [x] `Yin::detect`, `Decimator::process` e `PeakMeter::process` não alocam (buffers criados no construtor; revisar código).
+- [x] Clippy limpo, sem `unwrap`/`expect` fora de testes.
+
+## Result
+
+- Criados `src-tauri/src/dsp/{mod,peak,decimate,yin,note}.rs`; 20 testes de DSP (26 no total) passam; clippy `--all-targets -D warnings` limpo.
+- Decisões do usuário: faixa 28–500 Hz com decimação para 8 kHz; YIN próprio; peak com hold 1.5 s e queda 20 dB/s (constantes em `peak.rs`).
+- `PeakMeter::process(&[f32]) -> PeakReading { peak_dbfs, hold_dbfs, over_threshold }` (piso -120 dBFS; `over_threshold` usa o pico do bloco; ignora amostras não finitas; threshold ajustável via `set_threshold_dbfs`).
+- `Decimator::new(in_rate, target, cutoff)`: Butterworth 6ª ordem (3 biquads, estado f64) + downsample inteiro; `process(input, sink: FnMut(f32))` sem alocação. Fator = `round(in/target)`; a taxa de saída real vem de `output_rate()` (ex.: 44.1k → 7350 Hz) — **o passo 5 deve construir o `Yin` com essa taxa**, não com 8000 fixo. Corte padrão sugerido: 1500 Hz.
+- `Yin::new(rate, window, min, max)`, `detect(&[f32]) -> Option<PitchEstimate{freq_hz, clarity}>`, `set_gate_dbfs`, `set_threshold`. Gate padrão -50 dBFS (RMS do frame decimado). Janela 1024 a 8 kHz → latência ~128 ms. O frame passado precisa ter ≥ `window_size()` amostras (usa as primeiras).
+- `freq_to_note(freq, a4) -> Option<NoteInfo{name, octave, midi, cents, target_hz}>` e `note_to_freq`; A4 sempre parâmetro.
+- Precisão: < 1 cent em senoide e dente-de-serra para B0–C3; < 3 cents com fundamental atenuado (0.3x); cadeia completa 192k→decimação→YIN < 2 cents. `detect` leva bem menos que 8 ms em debug (teste de orçamento).
+- `lib.rs` ganhou `cfg_attr(test, allow(unwrap_used, expect_used))` para permitir `expect` apenas em testes.
+- Pendência para o passo 5: o gate de -50 dBFS é aplicado ao sinal pós-ganho/decimação; o passo 10 expõe o valor ao usuário.

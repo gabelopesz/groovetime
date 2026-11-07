@@ -1,4 +1,7 @@
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+
 pub mod audio;
+pub mod dsp;
 
 pub fn run() {
     env_logger::init();
