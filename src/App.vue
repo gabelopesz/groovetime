@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import BassModeToggle from "./components/BassModeToggle.vue";
 import DebugPanel from "./components/DebugPanel.vue";
 import PeakMeter from "./components/PeakMeter.vue";
+import StatusFooter from "./components/StatusFooter.vue";
+import TunerDisplay from "./components/TunerDisplay.vue";
 import { useSignalFrame } from "./composables/useSignalFrame";
 
 const { frame } = useSignalFrame();
@@ -8,14 +11,19 @@ const { frame } = useSignalFrame();
 
 <template>
   <main class="app">
-    <h1>Groove Time</h1>
     <PeakMeter
       :peak-dbfs="frame?.peak_dbfs ?? -120"
       :peak-hold-dbfs="frame?.peak_hold_dbfs ?? -120"
       :over-threshold="frame?.over_threshold ?? false"
       :clipped-recently="frame?.clipped_recently ?? false"
     />
-    <DebugPanel :frame="frame" />
+    <TunerDisplay :pitch="frame?.pitch ?? null" />
+    <BassModeToggle :confirmed-mode="frame?.mode ?? null" />
+    <StatusFooter />
+    <details class="debug">
+      <summary>Debug</summary>
+      <DebugPanel :frame="frame" />
+    </details>
   </main>
 </template>
 
@@ -36,8 +44,9 @@ body {
   padding: 8px;
 }
 
-h1 {
-  margin: 4px 12px;
-  font-size: 18px;
+.debug {
+  margin-top: 16px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.5);
 }
 </style>

@@ -33,7 +33,11 @@ const status: EngineStatus = {
   mode,
 };
 
+/** `?failmode` na URL simula falha do command (para testar o rollback). */
 export function mockSetBassMode(next: BassMode): void {
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("failmode")) {
+    throw new Error("falha simulada (mock)");
+  }
   mode = next;
 }
 
