@@ -1,0 +1,19 @@
+# Dependencies / build output
+node_modules/
+dist/
+dist-ssr/
+src-tauri/target/
+src-tauri/gen/
+
+# Logs
+logs
+*.log
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
+*.local

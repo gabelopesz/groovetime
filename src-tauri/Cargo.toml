@@ -1,0 +1,37 @@
+[package]
+name = "groove-time"
+version = "0.1.0"
+description = "Groove Time - afinador de contrabaixo e monitor de sinal"
+authors = ["Groove Time"]
+edition = "2024"
+
+[lib]
+# The `_lib` suffix is necessary to make the lib name unique and not conflict with the bin name.
+name = "groove_time_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Declaradas para os proximos passos (ainda nao usadas)
+cpal = "0.18"
+rtrb = "0.4"
+thiserror = "2"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true
