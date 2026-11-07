@@ -45,3 +45,6 @@ Construir e iniciar o stream de captura `cpal` com uma callback de tempo real qu
 ## Notes for execution
 
 - Extrair a lógica da callback para uma `fn process_interleaved<T: Sample>(data: &[T], channels, ch_idx, gain, producer: &mut Producer<f32>, dropped: &AtomicU64)` facilita o teste sem hardware.
+
+
+> Nota do passo 2: PCMs-plugin do ALSA reportam faixas de rate/canais irreais; ao abrir o stream, ler e logar a rate efetiva e tratar falha de build com fallback para outra config.

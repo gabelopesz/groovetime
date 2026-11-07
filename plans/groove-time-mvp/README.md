@@ -27,7 +27,7 @@ Construir o "Groove Time", app desktop Linux (Tauri v2 + Rust + Vue 3/TS) que ca
 | # | Step | Status | Depends on |
 |---|------|--------|------------|
 | 1 | [Scaffold Tauri v2 + Vue 3/TS + build profile](steps/step-01-scaffold.md) | done | — |
-| 2 | [Seleção de device e config de captura (cpal/ALSA)](steps/step-02-audio-device-config.md) | pending | 1 |
+| 2 | [Seleção de device e config de captura (cpal/ALSA)](steps/step-02-audio-device-config.md) | done | 1 |
 | 3 | [Biblioteca DSP pura: pico dBFS, decimação e YIN](steps/step-03-dsp-core.md) | pending | 1 |
 | 4 | [Callback RT lock-free + ring buffer + ganho atômico](steps/step-04-realtime-capture.md) | pending | 2, 3 |
 | 5 | [Thread DSP, throttling 16 ms, eventos e commands Tauri](steps/step-05-dsp-thread-ipc.md) | pending | 4 |

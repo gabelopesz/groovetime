@@ -1,6 +1,6 @@
 # Step 2: Seleção de device e config de captura (cpal/ALSA)
 
-**Status:** pending
+**Status:** done
 **Depends on:** 1
 
 ## Goal
@@ -43,10 +43,18 @@ Implementar o módulo `audio::device` que, usando a host API ALSA do `cpal`, enu
 
 ## Acceptance criteria
 
-- [ ] `cargo test` cobre a função de ranking de configs (192k preferido; fallback para maior rate; formato I32/F32 preferido sobre I16).
-- [ ] Um teste/binário de debug (ex.: `cargo run --example list_devices` ou teste `#[ignore]`) lista devices de captura e a config escolhida na máquina atual sem panic.
-- [ ] Nenhum `unwrap`/`expect` fora de testes; clippy limpo.
+- [x] `cargo test` cobre a função de ranking de configs (192k preferido; fallback para maior rate; formato I32/F32 preferido sobre I16).
+- [x] Um teste/binário de debug (ex.: `cargo run --example list_devices` ou teste `#[ignore]`) lista devices de captura e a config escolhida na máquina atual sem panic.
+- [x] Nenhum `unwrap`/`expect` fora de testes; clippy limpo.
 
 ## Notes for execution
 
 - Mantenha o tipo `CaptureConfig` simples e `Clone`, ele será passado para o passo 4 e serializado (parcialmente) para a UI no passo 5 — derive `serde::Serialize` num `DeviceInfo`/`StreamInfo` separado.
+
+## Result
+
+- Criados `src-tauri/src/audio/{mod,error,device}.rs` e `src-tauri/examples/list_devices.rs` (`cargo run --example list_devices [preferencia]`).
+- Decisões do usuário: **caminho 192k = ambos, preferindo PipeWire** (sem preferência usa Q-24/Teyun → default; `find_device(Some("hw:"))` dá o modo exclusivo por substring de nome/id); **fallback** = maior rate disponível + `log::warn`, com `StreamInfo.below_target_rate` para a UI.
+- API cpal 0.18: `description().name()`/`id()` (não há mais `name()`), `SampleFormat::I24` existe (4 bytes, 24 bits úteis), erro único `cpal::Error`, `HostId::Alsa`.
+- Ranking puro em `rank_configs` (rate 192k > maior rate; depois I32/I24 > F32 > I16; canais > `target_channel`); 6 testes passam. Clippy `--all-targets -D warnings` limpo.
+- **Achado para passos 4/14:** os PCMs-plugin do ALSA (`default`, `pipewire`, `plughw`) reportam faixas irreais (1..u32::MAX Hz, 32–64 canais), então "192 kHz escolhido" aqui não garante a rate real do stream. Na máquina de teste a escolha foi 192000/1ch/I24 no `default`. A rate efetiva deve ser conferida ao construir o stream (passo 4) e validada com a Q-24 real (passo 14). Nome real da Q-24 e número/índice dos canais continuam sem confirmação (placa não conectada).
