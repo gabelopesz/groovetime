@@ -4,9 +4,9 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import { activeListenerCount, isTauri } from "../api/events";
 import { useBassMode } from "../composables/useBassMode";
 import { useEngineStatus } from "../composables/useEngineStatus";
-import { useSignalFrame } from "../composables/useSignalFrame";
+import type { SignalFrame } from "../types/engine";
 
-const { frame } = useSignalFrame();
+const props = defineProps<{ frame: SignalFrame | null }>();
 const { status, error: statusError, restart } = useEngineStatus();
 const { mode, error: modeError, toggle } = useBassMode();
 
@@ -25,7 +25,7 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timer));
 
 // Conta quantas publicações do frame ocorreram por segundo.
-watch(frame, () => {
+watch(() => props.frame, () => {
   frames += 1;
 });
 </script>
@@ -43,7 +43,7 @@ watch(frame, () => {
     </p>
     <p v-if="statusError || modeError" class="err">{{ statusError ?? modeError }}</p>
     <pre>status: {{ JSON.stringify(status, null, 2) }}</pre>
-    <pre>frame: {{ JSON.stringify(frame, null, 2) }}</pre>
+    <pre>frame: {{ JSON.stringify(props.frame, null, 2) }}</pre>
   </section>
 </template>
 

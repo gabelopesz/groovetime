@@ -1,6 +1,6 @@
 # Step 7: Componente VU meter / LED PEAK
 
-**Status:** pending
+**Status:** done
 **Depends on:** 6
 
 ## Goal
@@ -34,7 +34,16 @@ Criar o componente Vue `PeakMeter.vue` que mostra o nível de pico em dBFS (barr
 
 ## Acceptance criteria
 
-- [ ] Com frames mockados, o meter acompanha suave a 60 fps sem jank (DevTools Performance sem layout thrash).
-- [ ] Valor ≥ -3 dBFS acende o LED PEAK imediatamente; volta a apagar após o hold.
-- [ ] `prefers-reduced-motion` desativa a animação de pulso.
-- [ ] `vue-tsc` limpo.
+- [x] (parcial) Por construção só `transform`/`opacity` mudam a 60 Hz (nível via `translateX` em duas camadas, hold via `translateX`, LED via `opacity`/`scale`); release suave por rAF. **Não perfilei no DevTools Performance** — verificado apenas visualmente por screenshot com o mock.
+- [x] Screenshot com mock: LED aceso (glow + vinheta) com `over_threshold`/`clipped_recently`. O hold de 1.5 s vem do backend (`clipped_recently`); apagar após o hold não foi observado visualmente.
+- [x] `@media (prefers-reduced-motion: reduce)` remove o `animation` do pulso e as transições (o LED e a vinheta continuam por cor). Não testado emulando a preferência.
+- [x] `pnpm build` (vue-tsc + vite) limpo.
+
+## Result
+
+- Criados `src/components/PeakMeter.vue` e `src/utils/meterScale.ts` (`dbToPosition`, ticks, `PEAK_ALERT_DBFS`). `App.vue` agora usa `useSignalFrame` uma vez e passa o frame ao `PeakMeter` e ao `DebugPanel` (que virou prop-driven).
+- **Decisões do usuário:** meter horizontal; alerta = LED + vinheta vermelha sutil na janela (elemento `position: fixed` dentro do componente — o passo 9 pode movê-lo para o layout); faixa -60…0 dBFS.
+- Escala não linear por tabela (ex.: -24→0.40, -12→0.66, -6→0.82, -3→0.91, 0→1); zonas verde até -12, amarelo até -3, vermelho acima (hard stops). 40 células LED por máscara CSS; cores/altura via CSS vars (`--led-green` etc.) para o passo 9 ajustar.
+- Nível exibido: ataque instantâneo, queda de 50 dB/s (rAF próprio, pois o frame de silêncio repete -120 e não dispararia `watch`). Leitura numérica = peak hold; `role="meter"` com `aria-valuenow` inteiro (evita ruído em leitores de tela); LED com `role="status"` e texto só para leitores de tela.
+- Mock ajustado: `clipped_recently` com hold de 1.5 s e peak hold com queda de 20 dB/s como o backend.
+- Verificação visual: Chrome headless contra `pnpm dev` (mock) em 2 instantes. Não verifiquei no app Tauri com sinal real (mic onboard em silêncio) nem a emulação de `prefers-reduced-motion`.

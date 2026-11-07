@@ -16,6 +16,7 @@ const NOTES = [
 ];
 
 const ACTIVE_ATTENUATION_DB = 12;
+const CLIP_HOLD_MS = 1500;
 
 let mode: BassMode = "passive";
 const status: EngineStatus = {
@@ -49,6 +50,9 @@ export function mockListDevices(): DeviceInfo[] {
 /** Gera frames sintéticos a ~60 Hz; devolve a função de parada. */
 export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => void {
   const start = performance.now();
+  let lastOver = -Infinity;
+  let hold = -120;
+  let holdSince = start;
   const timer = setInterval(() => {
     const t = (performance.now() - start) / 1000;
     // Envelope de "pluck" repetido a cada 3 s; ocasionalmente passa de -3 dBFS.
@@ -60,11 +64,22 @@ export function startMockFrames(onFrame: (frame: SignalFrame) => void): () => vo
     const idx = Math.floor(t / 3) % NOTES.length;
     const n = NOTES[idx]!;
     const playing = envelope > 0.05;
+    const over = playing && peak >= -3;
+    const now = performance.now();
+    if (over) lastOver = now;
+    // Hold de 1.5 s e queda de 20 dB/s, como o backend.
+    const pk = playing ? peak : -120;
+    if (pk >= hold) {
+      hold = pk;
+      holdSince = now;
+    } else if (now - holdSince > 1500) {
+      hold = Math.max(-120, hold - 20 * 0.016);
+    }
     onFrame({
-      peak_dbfs: playing ? peak : -120,
-      peak_hold_dbfs: peak,
-      over_threshold: peak >= -3,
-      clipped_recently: peak >= -3,
+      peak_dbfs: pk,
+      peak_hold_dbfs: hold,
+      over_threshold: over,
+      clipped_recently: performance.now() - lastOver < CLIP_HOLD_MS,
       pitch: playing
         ? { freq_hz: n.freq, note: n.note, octave: n.octave, cents: Math.sin(t * 2) * 12 }
         : null,

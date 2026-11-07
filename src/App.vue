@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import DebugPanel from "./components/DebugPanel.vue";
+import PeakMeter from "./components/PeakMeter.vue";
+import { useSignalFrame } from "./composables/useSignalFrame";
+
+const { frame } = useSignalFrame();
 </script>
 
 <template>
   <main class="app">
     <h1>Groove Time</h1>
-    <DebugPanel />
+    <PeakMeter
+      :peak-dbfs="frame?.peak_dbfs ?? -120"
+      :peak-hold-dbfs="frame?.peak_hold_dbfs ?? -120"
+      :over-threshold="frame?.over_threshold ?? false"
+      :clipped-recently="frame?.clipped_recently ?? false"
+    />
+    <DebugPanel :frame="frame" />
   </main>
 </template>
 

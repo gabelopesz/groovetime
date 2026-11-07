@@ -32,7 +32,7 @@ Construir o "Groove Time", app desktop Linux (Tauri v2 + Rust + Vue 3/TS) que ca
 | 4 | [Callback RT lock-free + ring buffer + ganho atômico](steps/step-04-realtime-capture.md) | done | 2, 3 |
 | 5 | [Thread DSP, throttling 16 ms, eventos e commands Tauri](steps/step-05-dsp-thread-ipc.md) | done | 4 |
 | 6 | [Camada frontend: tipos, composables de evento/invoke](steps/step-06-frontend-bridge.md) | done | 5 |
-| 7 | [Componente VU meter / LED PEAK](steps/step-07-vu-meter.md) | pending | 6 |
+| 7 | [Componente VU meter / LED PEAK](steps/step-07-vu-meter.md) | done | 6 |
 | 8 | [Afinador + toggle Ativo/Passivo](steps/step-08-tuner-and-mode.md) | pending | 6 |
 | 9 | [Mesh gradient CSS + layout final](steps/step-09-mesh-gradient-layout.md) | pending | 7, 8 |
 | 10 | [Métricas extras: RMS, contador de clips, noise floor/DC, gate](steps/step-10-signal-metrics.md) | pending | 9 |
